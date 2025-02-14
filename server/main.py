@@ -20,6 +20,7 @@ openai_api_key = os.getenv("OPENAI_API_KEY")
 openai.api_key = openai_api_key
 
 app = FastAPI()
+tool_answer = ""
 
 app.add_middleware(
   CORSMiddleware,
@@ -58,6 +59,7 @@ class DynamicToolFactory:
         self.verified = True
 
     def create_tools(self):
+        global tool_answer
         for _, row in self.df.iterrows():
             tool_name = row["name"].strip()
             description = row["description"].strip()
@@ -73,11 +75,14 @@ class DynamicToolFactory:
             
             def generate_function(tool_name, param_name):
               def tool_function(param_value):
+                  global tool_answer
                   if self.verified:
                     if param_value is None:
                         return f"Error: Missing required parameter '{param_name}'"
                     else:
-                        return f"Say that '{tool_name}' API is called"
+                        tool_answer = f"'{tool_name}' API is called"
+                        print(tool_answer)
+                        return tool_answer
                   else:
                      return f"You are not verified user. Please log in."
               return tool_function
@@ -163,11 +168,12 @@ def translate_to_german(text: str) -> str:
 
 @app.post("/chat")
 async def chat(request: Request):
+  global tool_answer
   data = await request.json()
   user_message = data.get("message")
 
   # Translate German input to English
-  translated_query = "The orderId is s-2039." + translate_to_english(user_message)
+  translated_query = "The orderId is 1234." + translate_to_english(user_message)
 
   # Search FAQ database with the translated query
   similar_faqs = vector_db.similarity_search_with_score(translated_query, k=1)
@@ -189,7 +195,10 @@ async def chat(request: Request):
 
   # If no FAQ match is found, use structured tools or LLM
   response = agent.run(translated_query)
-
+  print(tool_answer)
+  if(tool_answer):
+    response = tool_answer
+    tool_answer = ""
   # Translate final response back to German before returning
   final_response = translate_to_german(response)
 
