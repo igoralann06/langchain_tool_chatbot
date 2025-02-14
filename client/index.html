@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Widget</title>
+  <link href="./style.css" rel="stylesheet"/>
+</head>
+<body>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const chatButton = document.createElement("div");
+      chatButton.innerText = "💬";
+      chatButton.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #6c5ce7;
+        color: white;
+        padding: 12px 18px;
+        font-size: 18px;
+        border-radius: 20px;
+        cursor: pointer;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        transition: all 0.3s ease;
+      `;
+      document.body.appendChild(chatButton);
+
+      const chatContainer = document.createElement("div");
+      chatContainer.classList.add("chat-container");
+      document.body.appendChild(chatContainer);
+
+      const chatHeader = document.createElement("div");
+      chatHeader.classList.add("chat-header");
+      chatHeader.innerText = "Support Chat";
+      chatContainer.appendChild(chatHeader);
+
+      const chatMessages = document.createElement("div");
+      chatMessages.classList.add("chat-messages");
+      chatContainer.appendChild(chatMessages);
+
+      const typingMessage = document.createElement("div");
+      typingMessage.classList.add("typing");
+      typingMessage.innerText = "bot is typing.";
+      typingMessage.style.display = "none";
+      chatContainer.appendChild(typingMessage);
+
+      const chatInputContainer = document.createElement("div");
+      chatInputContainer.classList.add("chat-input-container");
+      const chatInput = document.createElement("input");
+      chatInput.classList.add("chat-input");
+      chatInput.type = "text";
+      chatInput.placeholder = "Type a message...";
+      const sendButton = document.createElement("button");
+      sendButton.classList.add("send-button");
+      sendButton.innerText = "Send";
+      chatInputContainer.appendChild(chatInput);
+      chatInputContainer.appendChild(sendButton);
+      chatContainer.appendChild(chatInputContainer);
+
+      let isBotTyping = false;
+      let typingInterval;
+      let typingDots = 0;
+
+      function startTyping() {
+        typingMessage.style.display = "block";
+        typingDots = 0;
+
+        typingInterval = setInterval(() => {
+          typingDots = (typingDots + 1) % 4;
+          typingMessage.innerText = "bot is typing" + ".".repeat(typingDots);
+        }, 200);
+      }
+
+      function stopTyping() {
+        clearInterval(typingInterval);
+        typingMessage.style.display = "none";
+      }
+
+      function sendMessage() {
+        if (chatInput.value.trim() && !isBotTyping) {
+          const userText = chatInput.value.trim();
+
+          // Append user's message to the chat
+          const userMessage = document.createElement("div");
+          userMessage.classList.add("user-message");
+          userMessage.innerHTML = `<span style="display: flex; align-items: center;">
+            <img src="/board/img/user.png" style="width: 24px; height: 24px; margin-right: 8px;"> 
+            ${userText}
+          </span>`;
+          chatMessages.appendChild(userMessage);
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+
+          chatInput.value = "";
+          chatInput.disabled = true;
+          sendButton.disabled = true;
+          startTyping();
+
+          // Simulate bot typing response
+          isBotTyping = true;
+
+          // Send AJAX request to backend
+          fetch("/chat", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ message: userText }),
+          })
+          .then(response => response.json())
+          .then(data => {
+            stopTyping();
+            chatInput.disabled = false;
+            sendButton.disabled = false;
+            chatInput.focus();
+            isBotTyping = false;
+
+            // Append bot response to the chat
+            const botMessage = document.createElement("div");
+            botMessage.classList.add("bot-message");
+            botMessage.innerHTML = `<span style="display: flex; align-items: center;">
+              <img src="/board/img/virtual-assistant.png" style="width: 24px; height: 24px; margin-right: 8px;"> 
+              ${data.response}
+            </span>`;
+            chatMessages.appendChild(botMessage);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+          })
+          .catch(error => {
+            console.error("Error:", error);
+            stopTyping();
+            chatInput.disabled = false;
+            sendButton.disabled = false;
+            chatInput.focus();
+            isBotTyping = false;
+          });
+        }
+      }
+
+      sendButton.addEventListener("click", sendMessage);
+      
+      chatInput.addEventListener("keydown", function (e) {
+        if (e.key === 'Enter') {
+          sendMessage();
+        }
+      });
+
+      let chatOpen = false;
+      function toggleChat() {
+        chatOpen = !chatOpen;
+        if (chatOpen) {
+          chatContainer.style.display = "flex";
+          setTimeout(() => {
+            chatContainer.style.opacity = "1";
+            chatContainer.style.transform = "scale(1)";
+          }, 50);
+        } else {
+          chatContainer.style.opacity = "0";
+          chatContainer.style.transform = "scale(0.8)";
+          setTimeout(() => {
+            chatContainer.style.display = "none";
+          }, 300);
+        }
+      }
+
+      chatButton.addEventListener("click", toggleChat);
+      chatHeader.addEventListener("click", toggleChat);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+langchain
+python_dotenv==1.0.1
+fastapi==0.115.8
+openai
+uvicorn==0.34.0
+faiss-cpu
+pandas
+openai
