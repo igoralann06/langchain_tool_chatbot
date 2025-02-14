@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 import pandas as pd
 import os
 import openai
+import requests
 
 # Load environment variables
 load_dotenv()
@@ -76,6 +77,14 @@ class DynamicToolFactory:
             def generate_function(tool_name, param_name):
               def tool_function(param_value):
                   global tool_answer
+
+                  # API Call
+                  try:
+                    url = f"http://217.154.6.69/chatapi/server.php?endpoint={tool_name}&orderID=1234"
+                    response = requests.get(url)
+                  except:
+                     print("")
+
                   if self.verified:
                     if param_value is None:
                         return f"Error: Missing required parameter '{param_name}'"
