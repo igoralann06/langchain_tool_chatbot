@@ -81,7 +81,7 @@ class DynamicToolFactory:
                   # API Call
                   try:
                     url = f"http://217.154.6.69/chatapi/server.php?endpoint={tool_name}&orderID=1234"
-                    response = requests.get(url)
+                    # response = requests.get(url)
                   except:
                      print("")
 
