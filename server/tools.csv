@@ -1,0 +1,13 @@
+getOpenedOrders,get opened orders of the customer in HTML format,,,result,HTML
+getOrder,get a typical information of the order specified by the key given by the customer in HTML format,key,String,result,HTML
+getInvoiceNo,get the invoice number of the order specified by order ID,orderID,String,invoiceNo,String
+getInvoiceDate,get the invoice date of the order specified by order ID,orderID,String,invoiceNo,String
+isInvoiceIssued,check whether the invoice of the order specified by order ID has been issued or not,orderID,String,result,Boolean
+getBillingInfo,get the billing information of the order specified by order ID,orderID,String,result,Boolean
+getShippingInfo,get the shipping information of the order specified by order ID,orderID,String,result,HTML
+getTotalPrice,get the total price of the order specified by order ID,orderID,String,totalPrice,String
+getShippingStatus,get the shipping information of the order specified by order ID,orderID,String,result,String
+getOrderStatus,get the status of the order specified by order ID,orderID,String,result,String
+getPaymentStatus,get the payment status of the order specified by order ID,orderID,String,result,HTML
+getDetailedPriceInfo,get the detailed price information of the order specified by order ID,orderID,String,result,HTML
+getTotalWeight,get the total weight of the order specified by order ID,orderID,String,totalWeight,Integer
