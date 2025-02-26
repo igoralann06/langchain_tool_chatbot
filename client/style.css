@@ -77,14 +77,14 @@ body {
 
 .user-message {
     align-self: flex-end;
-    background: #007aff;
+    background: #ccc;
     color: black;
     border-bottom-right-radius: 5px;
 }
 
 .bot-message {
     align-self: flex-start;
-    background: #f8e;
+    background: #ccc;
     color: black;
     border-bottom-left-radius: 5px;
 }

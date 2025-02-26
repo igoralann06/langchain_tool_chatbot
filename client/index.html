@@ -77,7 +77,7 @@
       // Typing Indicator
       const typingMessage = document.createElement("div");
       typingMessage.classList.add("typing");
-      typingMessage.innerText = "The bot is typing.";
+      typingMessage.innerText = "Der Bot tippt.";
       typingMessage.style.cssText = `
         display: none;
         margin-left: 10px;
@@ -112,7 +112,7 @@
         typingDots = 0;
         typingInterval = setInterval(() => {
           typingDots = (typingDots + 1) % 4;
-          typingMessage.innerText = "The bot is typing" + ".".repeat(typingDots);
+          typingMessage.innerText = "Der Bot tippt" + ".".repeat(typingDots);
         }, 200);
       }
       
