@@ -14,6 +14,8 @@ import pandas as pd
 import os
 import openai
 import requests
+import asyncio
+import json
 
 # Load environment variables
 load_dotenv()
@@ -22,6 +24,9 @@ openai.api_key = openai_api_key
 
 app = FastAPI()
 tool_answer = ""
+
+# Store chat history
+chat_logs = {}
 
 app.add_middleware(
   CORSMiddleware,
@@ -130,16 +135,16 @@ tool_factory.create_tools()
 class fallbackModel(BaseModel):
   query: str
 
-def fallback_handler(query: str) -> str:
+def fallback_handler(message: str) -> str:
    response = openai.ChatCompletion.create(
       model="gpt-4",
-      messages=[{"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": query}])
+      messages=[{"role": "system", "content": "I am the chatbot from Ventano to help. You have to introduce yourself simply like 'I am  the chatbot from Ventano. How can I help you' when the user say 'Hello'. If you don't know about the customer's question, you must use 'I don't know at first'"},
+                {"role": "user", "content": message}])
    return response["choices"][0]["message"]["content"]
 
 fallback_tool = StructuredTool(
-  name="General question",
-  description="General question",
+  name="General",
+  description="General",
   func=fallback_handler,
   args_schema=fallbackModel
 )
@@ -171,44 +176,98 @@ def translate_to_german(text: str) -> str:
   prompt = f"Translate the following English text to German: {text}"
   return llm.predict(prompt)
 
+
+def log_for_ai_training(chat_history):
+    """Store human-handled conversations for AI learning."""
+    
+    with open("ai_training_data.json", "a", encoding="utf-8") as file:
+        json.dump(chat_history, file, ensure_ascii=False)
+        file.write("\n")  # New line for each conversation
+
+
 # =====================
 #   FastAPI Chat Route
 # =====================
 
 @app.post("/chat")
 async def chat(request: Request):
-  global tool_answer
-  data = await request.json()
-  user_message = data.get("message")
+    global tool_answer
+    data = await request.json()
+    user_message = data.get("message")
 
-  # Translate German input to English
-  translated_query = "The orderId is 1234." + translate_to_english(user_message)
+    translated_query = await asyncio.to_thread(translate_to_english, user_message)
 
-  # Search FAQ database with the translated query
-  similar_faqs = vector_db.similarity_search_with_score(translated_query, k=1)
-
-  SIMILARITY_THRESHOLD = 0.38
-  print(similar_faqs[0][1])
-
-  if similar_faqs and similar_faqs[0][1] < SIMILARITY_THRESHOLD:  # Lower scores mean better similarity
-    best_match, score = similar_faqs[0]
-    faq_answer = best_match.metadata["answer"]
-
-    # Translate FAQ answer back to German
-    prompt = PromptTemplate.from_template(
-      "Here is a frequently asked question: {faq}\nAnswer: {answer}\nRephrase the answer in a friendly tone. Please answer in German."
+    similar_faqs = await asyncio.to_thread(
+        lambda: vector_db.similarity_search_with_score(translated_query, k=1)
     )
-    response = llm.predict(prompt.format(faq=best_match.page_content, answer=faq_answer))
 
-    return {"response": response}
+    SIMILARITY_THRESHOLD = 0.38
 
-  # If no FAQ match is found, use structured tools or LLM
-  response = agent.run(translated_query)
-  print(tool_answer)
-  if(tool_answer):
-    response = tool_answer
-    tool_answer = ""
-  # Translate final response back to German before returning
-  final_response = translate_to_german(response)
+    if similar_faqs and similar_faqs[0][1] < SIMILARITY_THRESHOLD:
+        best_match, score = similar_faqs[0]
+        faq_answer = best_match.metadata["answer"]
 
-  return {"response": final_response}
+        prompt = PromptTemplate.from_template(
+            "Here is a frequently asked question: {faq}\nAnswer: {answer}\nRephrase the answer in a friendly tone. Please answer in German."
+        )
+
+        response = await asyncio.to_thread(
+            lambda: llm.predict(prompt.format(faq=best_match.page_content, answer=faq_answer))
+        )
+
+        return {"response": response, "handoff": False}
+
+    async def process_request():
+        global tool_answer
+        response = await asyncio.to_thread(agent.run, translated_query)
+
+        if tool_answer:
+            response = tool_answer
+            tool_answer = ""
+
+        final_response = await asyncio.to_thread(translate_to_german, response)
+
+        return final_response
+
+    response = await process_request()
+
+    # Handoff logic: If the AI is not confident, escalate to human agent
+    if "I don't know" in response or "please contact support" in response.lower():
+        chat_id = save_chat_history(user_message, response, handoff=True)
+        return {"handoff": True, "chat_id": chat_id, "history": get_chat_history(chat_id)}
+
+    chat_id = save_chat_history(user_message, response)
+    return {"response": response, "handoff": False, "chat_id": chat_id}
+
+
+def save_chat_history(user_message, ai_response, handoff=False):
+    chat_id = str(len(chat_logs) + 1)
+    chat_logs[chat_id] = {
+        "messages": [{"role": "user", "content": user_message}, {"role": "ai", "content": ai_response}],
+        "handoff": handoff
+    }
+    return chat_id
+
+def get_chat_history(chat_id):
+    return chat_logs.get(chat_id, {}).get("messages", [])
+
+@app.get("/handoff_chats")
+async def get_handoff_chats():
+    return {chat_id: chat for chat_id, chat in chat_logs.items() if chat["handoff"]}
+
+@app.post("/human_response")
+async def human_response(request: Request):
+    data = await request.json()
+    chat_id = data.get("chat_id")
+    human_message = data.get("message")
+
+    if chat_id in chat_logs:
+        chat_logs[chat_id]["messages"].append({"role": "human", "content": human_message})
+        chat_logs[chat_id]["handoff"] = False  # Mark as resolved
+
+        # Log response for AI learning
+        log_for_ai_training(chat_logs[chat_id]["messages"])
+
+    return {"status": "success"}
+
+
