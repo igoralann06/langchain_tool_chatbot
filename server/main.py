@@ -198,7 +198,7 @@ async def chat(request: Request):
     translated_query = await asyncio.to_thread(translate_to_english, user_message)
 
     similar_faqs = await asyncio.to_thread(
-        lambda: vector_db.similarity_search_with_score(translated_query, k=8)
+        lambda: vector_db.similarity_search_with_score(translated_query, k=5)
     )
 
     SIMILARITY_THRESHOLD = 0.38
@@ -213,7 +213,7 @@ async def chat(request: Request):
 
             # Ask GPT-4 to summarize and tailor the response
             prompt = PromptTemplate.from_template(
-                "The user asked: {user_query}\nHere are some relevant FAQs:\n{faq_content}\nPlease provide a helpful, combined response in German simply. Please do not list the faqs."
+                "The user asked: {user_query}\nHere are some relevant FAQs:\n{faq_content}\nPlease provide a helpful, combined response in German simply. Do not mention anything except only necessary answer to question. Please do not list the faqs."
             )
 
             response = await asyncio.to_thread(
