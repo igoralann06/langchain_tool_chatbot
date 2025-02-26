@@ -198,24 +198,29 @@ async def chat(request: Request):
     translated_query = await asyncio.to_thread(translate_to_english, user_message)
 
     similar_faqs = await asyncio.to_thread(
-        lambda: vector_db.similarity_search_with_score(translated_query, k=1)
+        lambda: vector_db.similarity_search_with_score(translated_query, k=8)
     )
 
     SIMILARITY_THRESHOLD = 0.38
 
-    if similar_faqs and similar_faqs[0][1] < SIMILARITY_THRESHOLD:
-        best_match, score = similar_faqs[0]
-        faq_answer = best_match.metadata["answer"]
+    if similar_faqs:
+        relevant_faqs = [faq for faq, score in similar_faqs if score < SIMILARITY_THRESHOLD]
 
-        prompt = PromptTemplate.from_template(
-            "Here is a frequently asked question: {faq}\nAnswer: {answer}\nRephrase the answer in a friendly tone. Please answer in German."
-        )
+        if relevant_faqs:
+            faq_content = "\n".join(
+                [f"Q: {faq.page_content}\nA: {faq.metadata['answer']}" for faq in relevant_faqs]
+            )
 
-        response = await asyncio.to_thread(
-            lambda: llm.predict(prompt.format(faq=best_match.page_content, answer=faq_answer))
-        )
+            # Ask GPT-4 to summarize and tailor the response
+            prompt = PromptTemplate.from_template(
+                "The user asked: {user_query}\nHere are some relevant FAQs:\n{faq_content}\nPlease provide a helpful, combined response in German simply. Please do not list the faqs."
+            )
 
-        return {"response": response, "handoff": False}
+            response = await asyncio.to_thread(
+                lambda: llm.predict(prompt.format(user_query=translated_query, faq_content=faq_content))
+            )
+
+            return {"response": response, "handoff": False}
 
     async def process_request():
         global tool_answer
