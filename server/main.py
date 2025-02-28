@@ -16,6 +16,9 @@ import openai
 import requests
 import asyncio
 import json
+from fastapi import WebSocket, WebSocketDisconnect
+
+from db_questions import add_question, get_questions, get_question_by_id, update_question_in_db
 
 # Load environment variables
 load_dotenv()
@@ -58,6 +61,7 @@ vector_db = FAISS.from_documents(documents, embedding_model)
 df_tools = pd.read_csv("tools.csv", encoding="windows-1252", header=None, names=["name", "description", "param_name", "param_type", "return_name", "return_type"])
 
 tools = []  # Store dynamically generated tools
+active_connections = set()
 
 class DynamicToolFactory:
     def __init__(self, dataframe):
@@ -224,22 +228,26 @@ async def chat(request: Request):
 
     async def process_request():
         global tool_answer
-        response = await asyncio.to_thread(agent.run, translated_query)
+        response = await asyncio.to_thread(agent.run, translated_query + "If you don't know the answer, simply answer 'I dont know. please contact support'")
 
         if tool_answer:
             response = tool_answer
             tool_answer = ""
+
+        # Handoff logic: If the AI is not confident, escalate to human agent
+        if "I don't know" in response or "please contact support" in response.lower():
+            chat_id = save_chat_history(user_message, response, handoff=True)
+            add_question(user_message)
+            # return {"handoff": True, "chat_id": chat_id, "history": get_chat_history(chat_id)}
+            await broadcast_question_to_clients(user_message)
+            print(chat_id)
+            # return response
 
         final_response = await asyncio.to_thread(translate_to_german, response)
 
         return final_response
 
     response = await process_request()
-
-    # Handoff logic: If the AI is not confident, escalate to human agent
-    if "I don't know" in response or "please contact support" in response.lower():
-        chat_id = save_chat_history(user_message, response, handoff=True)
-        return {"handoff": True, "chat_id": chat_id, "history": get_chat_history(chat_id)}
 
     chat_id = save_chat_history(user_message, response)
     return {"response": response, "handoff": False, "chat_id": chat_id}
@@ -274,5 +282,51 @@ async def human_response(request: Request):
         log_for_ai_training(chat_logs[chat_id]["messages"])
 
     return {"status": "success"}
+
+@app.get("/questions")
+def get_questions_api():
+    questions = get_questions()
+    return questions
+
+@app.post("/submit_answer")
+async def submit_answer(request: Request):
+    data = await request.json()
+    question_id = data.get("questionId")
+    answer = data.get("answer")
+
+    # Assuming you're using a dictionary or database to store questions
+    question = get_question_by_id(question_id)  # Fetch the question by ID from your DB
+    if question:
+        # Update the answer and set isAnswered to 1
+        
+        # Optionally: Update the question in the database
+        update_question_in_db(question_id, True)
+
+        return {"success": True}
+    return {"success": False, "message": "Question not found"}
+
+@app.websocket("/ws/chat/{chat_id}")
+async def websocket_endpoint(websocket: WebSocket, chat_id: str):
+    # Accept the WebSocket connection
+    await websocket.accept()
+    active_connections.add(websocket)
+
+    try:
+        while True:
+            # Wait for a message from the WebSocket client (chat widget)
+            message = await websocket.receive_text()
+            print(f"Message from client: {message}")
+            # You can process the message here if needed
+    except WebSocketDisconnect:
+        active_connections.remove(websocket)
+
+# Function to broadcast updated question to all active WebSocket clients
+async def broadcast_question_to_clients(question: str):
+    print(active_connections)
+    for connection in active_connections:
+        await connection.send_json({
+            "type": "new_question",
+            "question": question,
+        })
 
 

@@ -7,9 +7,63 @@
   <link href="./style.css" rel="stylesheet"/>
 </head>
 <body>
+
   <script>
+    let socket;
+
     document.addEventListener("DOMContentLoaded", function () {
-      
+      socket = new WebSocket("ws://localhost:8000/ws/chat/1"); // Use your chat_id here
+
+      function sendQuestion(question) {
+          // If chatbot doesn't know the answer
+          const message = {
+              type: 'unknown_question',
+              question: question,
+          };
+
+          socket.send(JSON.stringify(message));  // Send the question via WebSocket
+      }
+
+      function updateTableWithNewQuestion(question) {
+          const table = document.getElementById('questions-table');
+          const row = table.insertRow();
+          const cell = row.insertCell(0);
+          cell.textContent = question; // Add the question to the table
+      }
+
+      socket.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'new_question') {
+            updateTableWithNewQuestion(data.question);
+        }
+        if (data.type === "update_answer") {
+          const questionId = data.question_id;
+          const answer = data.answer;
+
+          // Update the table and widget with the new answer
+          const statusElement = document.getElementById(`status-${questionId}`);
+          const answerElement = document.getElementById(`answer-${questionId}`);
+          
+          // Update table
+          if (statusElement) {
+            statusElement.innerText = "Answered";
+          }
+          if (answerElement) {
+            answerElement.value = answer;
+          }
+
+          // Update chat widget
+          const chatMessages = document.querySelector(".chat-messages");
+          const botMessage = document.createElement("div");
+          botMessage.classList.add("bot-message");
+          botMessage.innerHTML = `<span>${answer.replace(/([.?!])\s*(?=[A-Z])/g, '$1<br>')}</span>`;
+          chatMessages.appendChild(botMessage);
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+      };
+
+      fetchQuestions();
       // Chat Button
       const chatButton = document.createElement("div");
       chatButton.innerText = "💬";
@@ -195,6 +249,59 @@
       
       chatButton.addEventListener("click", toggleChat);
     });
+
+    async function fetchQuestions() {
+        try {
+            const response = await fetch("/questions");
+            const questions = await response.json();
+
+            const tableBody = document.getElementById("question-table-body");
+            tableBody.innerHTML = ""; // Clear existing rows
+
+            // Populate table rows
+            questions.forEach(q => {
+                const row = `
+                    <tr style="border-bottom: 1px solid #ddd;">
+                        <td style="padding: 15px;">${q.question}</td>
+                        <td style="padding: 15px;">
+                            <input type="text" id="answer-${q.id}" placeholder="Enter answer" />
+                            <button onclick="submitAnswer(${q.id})">Submit</button>
+                            <span id="status-${q.id}">${q.isAnswered ? 'Answered' : 'Not Answered'}</span>
+                        </td>
+                    </tr>`;
+                tableBody.innerHTML += row;
+            });
+        } catch (error) {
+            console.error("Error fetching questions:", error);
+        }
+    }
+
+    async function submitAnswer(questionId) {
+        const answerInput = document.getElementById(`answer-${questionId}`);
+        const answer = answerInput.value.trim();
+
+        if (answer) {
+            try {
+                const response = await fetch("/submit_answer", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        questionId: questionId,
+                        answer: answer,
+                    }),
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById(`status-${questionId}`).innerText = "Answered";
+                }
+            } catch (error) {
+                console.error("Error submitting answer:", error);
+            }
+        }
+    }
   </script>
 </body>
 </html>
