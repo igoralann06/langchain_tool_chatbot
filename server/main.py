@@ -13,12 +13,19 @@ from fastapi.staticfiles import StaticFiles
 import pandas as pd
 import os
 import openai
-import requests
 import asyncio
 import json
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi.responses import StreamingResponse
+import csv
+from io import StringIO
 
-from db_questions import add_question, get_questions, get_question_by_id, update_question_in_db
+from db_questions import add_question, get_questions, init_db, delete_question
+from db_chats import add_chat, get_chats, init_chats, get_question
+from db_bots import add_bot, delete_bot, get_bot_by_id, init_bot
+from db_faqs import init_faq, add_faq, get_faqs
+
+# socket.io
+import socketio
 
 # Load environment variables
 load_dotenv()
@@ -26,6 +33,9 @@ openai_api_key = os.getenv("OPENAI_API_KEY")
 openai.api_key = openai_api_key
 
 app = FastAPI()
+sio = socketio.AsyncServer(cors_allowed_origins="*", async_mode="asgi")
+socket_app = socketio.ASGIApp(sio, app)
+
 tool_answer = ""
 
 # Store chat history
@@ -55,13 +65,20 @@ documents = [
 
 vector_db = FAISS.from_documents(documents, embedding_model)
 
+faqs = get_faqs()
+
+for faq in faqs:
+    new_doc = Document(page_content=faq["question"], metadata={"answer": faq["answer"]})
+    vector_db.add_documents([new_doc])
+
+
 # =====================
 #  Load Tools from CSV
 # =====================
 df_tools = pd.read_csv("tools.csv", encoding="windows-1252", header=None, names=["name", "description", "param_name", "param_type", "return_name", "return_type"])
 
 tools = []  # Store dynamically generated tools
-active_connections = set()
+adminSid = ""
 
 class DynamicToolFactory:
     def __init__(self, dataframe):
@@ -132,6 +149,11 @@ class DynamicToolFactory:
 tool_factory = DynamicToolFactory(df_tools)
 tool_factory.create_tools()
 
+init_db()
+init_chats()
+init_bot()
+init_faq()
+
 # =====================
 #   Define Tools
 # =====================
@@ -189,15 +211,8 @@ def log_for_ai_training(chat_history):
         file.write("\n")  # New line for each conversation
 
 
-# =====================
-#   FastAPI Chat Route
-# =====================
-
-@app.post("/chat")
-async def chat(request: Request):
+async def chat(user_message, sid):
     global tool_answer
-    data = await request.json()
-    user_message = data.get("message")
 
     translated_query = await asyncio.to_thread(translate_to_english, user_message)
 
@@ -224,7 +239,7 @@ async def chat(request: Request):
                 lambda: llm.predict(prompt.format(user_query=translated_query, faq_content=faq_content))
             )
 
-            return {"response": response, "handoff": False}
+            return response
 
     async def process_request():
         global tool_answer
@@ -235,11 +250,9 @@ async def chat(request: Request):
             tool_answer = ""
 
         # Handoff logic: If the AI is not confident, escalate to human agent
-        if "I don't know" in response or "please contact support" in response.lower():
+        if "please contact support" in response.lower():
             chat_id = save_chat_history(user_message, response, handoff=True)
-            add_question(user_message)
-            # return {"handoff": True, "chat_id": chat_id, "history": get_chat_history(chat_id)}
-            await broadcast_question_to_clients(user_message)
+            add_question(sid)
             print(chat_id)
             # return response
 
@@ -250,7 +263,8 @@ async def chat(request: Request):
     response = await process_request()
 
     chat_id = save_chat_history(user_message, response)
-    return {"response": response, "handoff": False, "chat_id": chat_id}
+    print(chat_id)
+    return response
 
 
 def save_chat_history(user_message, ai_response, handoff=False):
@@ -264,69 +278,111 @@ def save_chat_history(user_message, ai_response, handoff=False):
 def get_chat_history(chat_id):
     return chat_logs.get(chat_id, {}).get("messages", [])
 
-@app.get("/handoff_chats")
-async def get_handoff_chats():
-    return {chat_id: chat for chat_id, chat in chat_logs.items() if chat["handoff"]}
-
-@app.post("/human_response")
-async def human_response(request: Request):
-    data = await request.json()
-    chat_id = data.get("chat_id")
-    human_message = data.get("message")
-
-    if chat_id in chat_logs:
-        chat_logs[chat_id]["messages"].append({"role": "human", "content": human_message})
-        chat_logs[chat_id]["handoff"] = False  # Mark as resolved
-
-        # Log response for AI learning
-        log_for_ai_training(chat_logs[chat_id]["messages"])
-
-    return {"status": "success"}
-
 @app.get("/questions")
 def get_questions_api():
     questions = get_questions()
     return questions
 
-@app.post("/submit_answer")
-async def submit_answer(request: Request):
-    data = await request.json()
-    question_id = data.get("questionId")
-    answer = data.get("answer")
+@app.post("/chats")
+async def get_chats_api(request: Request):
+    body = await request.json()
+    sid = body.get("sid")
+    chats = get_chats(sid)
+    return chats
 
-    # Assuming you're using a dictionary or database to store questions
-    question = get_question_by_id(question_id)  # Fetch the question by ID from your DB
-    if question:
-        # Update the answer and set isAnswered to 1
-        
-        # Optionally: Update the question in the database
-        update_question_in_db(question_id, True)
+@app.post("/bot")
+async def get_bot_api(request: Request):
+    body = await request.json()
+    sid = body.get("sid")
+    bot = get_bot_by_id(sid)
+    return {"checked": not bot}
 
-        return {"success": True}
-    return {"success": False, "message": "Question not found"}
+@app.get("/download-faq/")
+def download_faq():
+    faq_list = get_faqs()
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=["id", "question", "answer"])
+    writer.writeheader()
+    writer.writerows(faq_list)
 
-@app.websocket("/ws/chat/{chat_id}")
-async def websocket_endpoint(websocket: WebSocket, chat_id: str):
-    # Accept the WebSocket connection
-    await websocket.accept()
-    active_connections.add(websocket)
+    # Move the cursor to the start of the stream
+    output.seek(0)
 
-    try:
-        while True:
-            # Wait for a message from the WebSocket client (chat widget)
-            message = await websocket.receive_text()
-            print(f"Message from client: {message}")
-            # You can process the message here if needed
-    except WebSocketDisconnect:
-        active_connections.remove(websocket)
+    # Return as a downloadable file
+    return StreamingResponse(
+        output,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=faq_list.csv"}
+    )
 
-# Function to broadcast updated question to all active WebSocket clients
-async def broadcast_question_to_clients(question: str):
-    print(active_connections)
-    for connection in active_connections:
-        await connection.send_json({
-            "type": "new_question",
-            "question": question,
-        })
 
+@sio.event
+async def connect(sid, environ):
+    print(f"Client connected with sid: {sid}")
+    # Send the sid to the client
+    await sio.emit('set_sid', {'sid': sid}, to=sid)
+
+@sio.event
+async def join(sid, data):
+    global adminSid
+    room = data['room']
+    if(room == "admin"):
+        adminSid = sid
+    else:
+        await sio.enter_room(sid, room)
+    print(f"Client {sid} joined room {room}")
+
+@sio.event
+async def message(sid, data):
+    global adminSid, vector_db
+    print(sid)
+    if(sid != adminSid):
+        room = data['room']
+        message = data['message']
+        print(f"Message from {sid} in room {room}: {message}")
+        add_chat(message, sid, False);
+        await sio.emit('message', {'sid': sid, 'message': message}, room=room)
+
+        bot = get_bot_by_id(room)
+        if not bot:
+            answer = await chat(message, sid)
+            add_chat(answer, sid, True)
+            await sio.emit('message', {'sid': 'bot', 'message': answer}, room=room)
+    else:
+        room = data['room']
+        message = data['message']
+
+        add_chat(message, room, True);
+        print(f"Message from {sid} in room {room}: {message}")
+        await sio.emit('message', {'sid': sid, 'message': message}, room=room)
+
+        questions = get_question(room)
+        add_faq(questions[0]["text"], message)
+
+        new_doc = Document(page_content=questions[0]["text"], metadata={"answer": message})
+        vector_db.add_documents([new_doc])
+
+@sio.event
+async def visit(sid, data):
+    print("visit "+data["room"])
+    await sio.enter_room(sid, data["room"])
+
+@sio.event
+async def ignore(sid, data):
+    print("ignore "+data["room"])
+    delete_question(data["room"])
+    delete_bot(data["room"])
+
+@sio.event
+async def bot(sid, data):
+    print("bot "+data["room"])
+    add_bot(data["room"])
+
+@sio.event
+async def disconnect(sid):
+    print(f"Client disconnected: {sid}")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(socket_app, host="0.0.0.0", port=8000)
 

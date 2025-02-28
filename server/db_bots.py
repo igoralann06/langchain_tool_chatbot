@@ -3,60 +3,60 @@ import sqlite3
 DB_PATH = 'database.db'
 
 # Create a connection and set up the table
-def init_db():
+def init_bot():
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS questions (
+            CREATE TABLE IF NOT EXISTS bots (
                 id INTEGER PRIMARY KEY,
                 sid TEXT
             )
         ''')
         conn.commit()
 
-def add_question(sid):
-    record = get_question_by_id(sid)
+def add_bot(sid):
+    record = get_bot_by_id(sid)
     if(not record):
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT INTO questions (sid) 
+                INSERT INTO bots (sid) 
                 VALUES (?)
             ''', (sid,))
             conn.commit()
 
             print("Question sid saved successfully!")
 
-def get_questions():
+def get_bots():
     # Open a new connection and set row factory
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT id, sid FROM questions
+            SELECT id, sid FROM bots
         ''')
         rows = cursor.fetchall()
 
         # Return the result as a list of dictionaries
         return [{"id": row["id"], "sid": row["sid"]} for row in rows]
     
-def delete_question(sid):
+def delete_bot(sid):
     # Open a new connection and set row factory
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute('''
-            DELETE FROM questions WHERE sid = ?
+            DELETE FROM bots WHERE sid = ?
         ''', (sid,))
         conn.commit()
 
 # Function to get question by ID
-def get_question_by_id(sid):
+def get_bot_by_id(sid):
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT id, sid FROM questions WHERE sid = ?
+            SELECT id, sid FROM bots WHERE sid = ?
         ''', (sid,))
         row = cursor.fetchone()
 

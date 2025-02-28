@@ -17,98 +17,32 @@
     rel="stylesheet"
   />
   <link rel="stylesheet" href="./chat.css">
+  <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
 </head>
 <body>
   <section class="gradient-custom">
     <div class="container py-5">
-  
+      <button type="button" data-mdb-button-init data-mdb-ripple-init class="btn btn-light btn-lg btn-rounded float-end mx-1" onclick="download()">Download FAQs</button>
       <div class="row">
-  
         <div class="col-md-6 col-lg-5 col-xl-5 mb-4 mb-md-0">
-  
           <h5 class="font-weight-bold mb-3 text-center text-white">Kunden</h5>
-  
-          <div class="card mask-custom">
-            <div class="card-body">
-  
-              <ul class="list-unstyled mb-0">
-                <li class="p-2 border-bottom selected" style="border-bottom: 1px solid rgba(255,255,255,.3) !important;">
-                  <a href="#!" class="d-flex justify-content-between link-light">
-                    <div class="d-flex flex-row">
-                      <img src="https://mdbcdn.b-cdn.net/img/Photos/Avatars/avatar-8.webp" alt="avatar"
-                        class="rounded-circle d-flex align-self-center me-3 shadow-1-strong" width="60">
-                      <div class="pt-1">
-                        <p class="fw-bold mb-0">John Doe</p>
-                        <p class="small text-white">Hello, Are you there?</p>
-                      </div>
-                    </div>
-                    <div class="pt-1">
-                      <p class="small text-white mb-1">Just now</p>
-                      <span class="badge bg-danger float-end">1</span>
-                    </div>
-                  </a>
-                </li>
-                <li class="p-2 border-bottom" style="border-bottom: 1px solid rgba(255,255,255,.3) !important;">
-                  <a href="#!" class="d-flex justify-content-between link-light">
-                    <div class="d-flex flex-row">
-                      <img src="https://mdbcdn.b-cdn.net/img/Photos/Avatars/avatar-1.webp" alt="avatar"
-                        class="rounded-circle d-flex align-self-center me-3 shadow-1-strong" width="60">
-                      <div class="pt-1">
-                        <p class="fw-bold mb-0">Danny Smith</p>
-                        <p class="small text-white">Lorem ipsum dolor sit.</p>
-                      </div>
-                    </div>
-                    <div class="pt-1">
-                      <p class="small text-white mb-1">5 mins ago</p>
-                    </div>
-                  </a>
-                </li>
-              </ul>
-  
+          <div class="customer-box">
+            <div class="card mask-custom">
+              <div class="card-body">
+                <ul class="list-unstyled mb-0" id="customerList">
+                  
+                </ul>
+              </div>
             </div>
           </div>
-  
         </div>
-  
+
         <div class="col-md-6 col-lg-7 col-xl-7">
+          <!-- Chat Box (right board) -->
           <div class="chat-box">
-          <ul class="list-unstyled text-white">
-            <li class="d-flex justify-content-between mb-4">
-              <img src="https://mdbcdn.b-cdn.net/img/Photos/Avatars/avatar-6.webp" alt="avatar"
-                class="rounded-circle d-flex align-self-start me-3 shadow-1-strong" width="60">
-              <div class="card mask-custom">
-                <div class="card-header d-flex justify-content-between p-3"
-                  style="border-bottom: 1px solid rgba(255,255,255,.3);">
-                  <p class="fw-bold mb-0">Brad Pitt</p>
-                  <p class="text-light small mb-0"><i class="far fa-clock"></i></p>
-                </div>
-                <div class="card-body">
-                  <p class="mb-0">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut
-                    labore et dolore magna aliqua.
-                  </p>
-                </div>
-              </div>
-            </li>
-            <li class="d-flex justify-content-between mb-4">
-              <div class="card mask-custom w-100">
-                <div class="card-header d-flex justify-content-between p-3"
-                  style="border-bottom: 1px solid rgba(255,255,255,.3);">
-                  <p class="fw-bold mb-0">Lara Croft</p>
-                  <p class="text-light small mb-0"><i class="far fa-clock"></i></p>
-                </div>
-                <div class="card-body">
-                  <p class="mb-0">
-                    Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque
-                    laudantium.
-                  </p>
-                </div>
-              </div>
-              <img src="https://mdbcdn.b-cdn.net/img/Photos/Avatars/avatar-5.webp" alt="avatar"
-                class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong" width="60">
-            </li>
-            
-          </ul>
+            <ul class="list-unstyled text-white" id="messagesList">
+              
+            </ul>
           </div>
 
           <div class="input-box">
@@ -116,43 +50,290 @@
                 <textarea class="form-control" id="textArea" rows="4"></textarea>
                 <label class="form-label" for="textAreaExample3">Message</label>
             </div>
-            <button  type="button" data-mdb-button-init data-mdb-ripple-init class="btn btn-light btn-lg btn-rounded float-end">Send</button>
+            <button type="button" data-mdb-button-init data-mdb-ripple-init class="btn btn-light btn-lg btn-rounded float-end mx-1" onclick="sendMessage()">Send</button>
+            <button type="button" data-mdb-button-init data-mdb-ripple-init class="btn btn-light btn-lg btn-rounded float-end mx-1" onclick="ignore()">Leave</button>
+            <div class="form-check form-switch text-white">
+              <input class="form-check-input" type="checkbox" role="switch" id="aimessage" disabled/>
+              <label class="form-check-label" for="flexSwitchCheckDefault">AI bot answering</label>
+            </div>
           </div>
-  
         </div>
       </div>
-  
     </div>
   </section>
 
   <script type="text/javascript">
     const customerItems = document.querySelectorAll('.list-unstyled li');
-    const chatMessages = document.querySelectorAll('.chat-message');
 
     customerItems.forEach(item => {
-    item.addEventListener('click', () => {
-        // Remove selection from other customers
-        customerItems.forEach(i => i.classList.remove('selected'));
-        item.classList.add('selected');
-
-        // Get selected customer's ID
-        const selectedCustomerId = item.getAttribute('data-id');
-
-        // Show only the selected customer’s messages
-        chatMessages.forEach(msg => {
-        if (msg.getAttribute('data-id') === selectedCustomerId) {
-            msg.style.display = 'block';
-        } else {
-            msg.style.display = 'none';
-        }
+        item.addEventListener('click', () => {
+            // Remove selection from other customers
+            customerItems.forEach(i => i.classList.remove('selected'));
+            item.classList.add('selected');
         });
     });
+
+    // socket.io
+    const socket = io("http://127.0.0.1:8000");
+
+    // Join room 12345
+    socket.emit('join', { room: 'admin' });
+
+    let currentUserSid = null;
+    let roomid = null;
+
+    // Listen for the event from the server to set the sid
+    socket.on('set_sid', (data) => {
+        currentUserSid = data.sid;
+        console.log("Current user sid:", currentUserSid);
     });
+
+    // Listen for incoming messages
+    socket.on('message', (data) => {
+        const message = data.message;
+        const senderSid = data.sid;
+
+        console.log(senderSid);
+        
+        if (senderSid === currentUserSid || senderSid == "bot") {
+            appendMessage(message);
+        } else {
+            appendOtherMessage(message);
+        }
+    });
+
+    // Send message
+    function sendMessage() {
+        const message = document.getElementById("textArea").value.trim();
+        if (message !== "") {
+            if(roomid != "") {
+              const aimessage = document.getElementById("aimessage");
+              aimessage.checked = false;
+              socket.emit('message', { room: roomid, message: message });
+              socket.emit('bot', { room: roomid });
+            }
+            document.getElementById("textArea").value = ''; 
+        } else {
+            console.log("Please enter a message before sending.");
+        }
+    }
+
+    function ignore() {
+        if(roomid != "") {
+          socket.emit('ignore', { room: roomid });
+          document.getElementById("textArea").value = '';
+          const messagesList = document.getElementById("messagesList");
+          messagesList.innerHTML = "";
+          roomid = "";
+        }
+    }
+
+    // Function to append message to the chat
+    function appendMessage(message) {
+      const messagesList = document.getElementById("messagesList");
+      const chatBox = document.querySelector(".chat-box");
+      const messageItem = document.createElement("li");
+      messageItem.classList.add("d-flex", "justify-content-between", "mb-4");
+
+      const messageCard = document.createElement("div");
+      messageCard.classList.add("card", "mask-custom", "w-100");
+
+      const cardHeader = document.createElement("div");
+      cardHeader.classList.add("card-header", "d-flex", "justify-content-between", "p-3");
+      cardHeader.innerHTML = `<p class="fw-bold mb-0">User</p><p class="text-light small mb-0"><i class="far fa-clock"></i></p>`;
+
+      const cardBody = document.createElement("div");
+      cardBody.classList.add("card-body");
+      // Using innerHTML to ensure the paragraph maintains styles and supports line breaks
+      cardBody.innerHTML = `<p class="mb-0 text-white" style="white-space: pre-wrap; word-wrap: break-word;">${message}</p>`;
+
+      const cardIcon = document.createElement("img");
+      cardIcon.classList.add("rounded-circle", "d-flex", "align-self-start", "ms-3", "shadow-1-strong");
+      cardIcon.width = "60";
+      cardIcon.src = "./img/user.png";
+
+      messageCard.appendChild(cardBody);
+      messageItem.appendChild(messageCard);
+      messageItem.appendChild(cardIcon);
+
+      messagesList.appendChild(messageItem);
+
+      // Scroll to the bottom of the chat box
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function appendOtherMessage(message) {
+      const messagesList = document.getElementById("messagesList");
+      const chatBox = document.querySelector(".chat-box");
+      const messageItem = document.createElement("li");
+      messageItem.classList.add("d-flex", "justify-content-between", "mb-4");
+
+      const messageCard = document.createElement("div");
+      messageCard.classList.add("card", "mask-custom", "w-100");
+
+      const cardHeader = document.createElement("div");
+      cardHeader.classList.add("card-header", "d-flex", "justify-content-between", "p-3");
+      cardHeader.innerHTML = `<p class="fw-bold mb-0">User</p><p class="text-light small mb-0"><i class="far fa-clock"></i></p>`;
+
+      const cardBody = document.createElement("div");
+      cardBody.classList.add("card-body");
+      // Using innerHTML to ensure the paragraph maintains styles and supports line breaks
+      cardBody.innerHTML = `<p class="mb-0 text-white" style="white-space: pre-wrap; word-wrap: break-word;">${message}</p>`;
+
+      const cardIcon = document.createElement("img");
+      cardIcon.classList.add("rounded-circle", "d-flex", "align-self-start", "me-3", "shadow-1-strong");
+      cardIcon.width = "60";
+      cardIcon.src = "./img/user.png";
+
+      messageItem.appendChild(cardIcon);
+      messageCard.appendChild(cardBody);
+
+      messageItem.appendChild(messageCard);
+      messagesList.appendChild(messageItem);
+
+      // Scroll to the bottom of the chat box
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    async function fetchCustomerList() {
+        try {
+            const response = await fetch('/questions');
+            const data = await response.json();
+            const customerList = document.getElementById('customerList');
+            const selectedCustomerSid = document.querySelector('.list-unstyled li.selected')?.getAttribute('data-sid');
+
+            customerList.innerHTML = ''; // Clear the current list
+
+            data.forEach(customer => {
+                const li = document.createElement('li');
+                li.classList.add('p-2', 'border-bottom');
+                li.style.borderBottom = '1px solid rgba(255,255,255,.3)';
+                li.setAttribute('data-sid', customer.sid);
+                li.innerHTML = `
+                    <a href="#!" class="d-flex justify-content-between link-light">
+                        <div class="d-flex flex-row">
+                            <img src="./img/user.png" alt="avatar"
+                                class="rounded-circle d-flex align-self-center me-3 shadow-1-strong" width="60">
+                            <div class="pt-1">
+                                <p class="fw-bold mb-0">${customer.sid}</p>
+                            </div>
+                        </div>
+                    </a>
+                `;
+                // <div class="pt-1">
+                //             <p class="small text-white mb-1">Just now</p>
+                //             <span class="badge bg-danger float-end">1</span>
+                //         </div>
+                customerList.appendChild(li);
+
+                // Maintain selection after fetch
+                if (customer.sid === selectedCustomerSid) {
+                    li.classList.add('selected');
+                }
+
+                li.addEventListener('click', () => {
+                    // Clear previous selection
+                    const previousSelected = document.querySelector('.list-unstyled li.selected');
+                    if (previousSelected) {
+                        previousSelected.classList.remove('selected');
+                    }
+
+                    // Add the 'selected' class to the clicked item
+                    li.classList.add('selected');
+                    const selectedSid = li.getAttribute('data-sid');
+                    console.log('Selected customer SID:', selectedSid);
+
+                    // Emit 'visit' event
+                    socket.emit('visit', { room: selectedSid });
+                    fetchChats(selectedSid);
+                    fetchBot(selectedSid);
+                    roomid = selectedSid;
+                });
+            });
+        } catch (error) {
+            console.error('Error fetching customer list:', error);
+        }
+    }
+
+    async function fetchChats(sid) {
+        const url = "/chats";
+        const data = { sid: sid };
+
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            const messagesList = document.getElementById("messagesList");
+            messagesList.innerHTML = "";
+            result.forEach(row => {
+              if(row["status"]) {
+                appendMessage(row["text"]);
+              } else {
+                appendOtherMessage(row["text"]);
+              }
+            });
+        } catch (error) {
+            console.error("Error:", error);
+        }
+    }
+
+    async function fetchBot(sid) {
+        const url = "/bot";
+        const data = { sid: sid };
+
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            const aimessage = document.getElementById("aimessage");
+            aimessage.checked = result["checked"];
+            
+        } catch (error) {
+            console.error("Error:", error);
+        }
+    }
+
+    // Set the interval to fetch the customer list every 5 seconds
+    setInterval(fetchCustomerList, 5000);
+
+    // Fetch the customer list when the page loads for the first time
+    window.onload = fetchCustomerList;
+
+    const chatInput = document.getElementById("textArea");
+    chatInput.addEventListener("keydown", function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    function download() {
+      window.open("/download-faq", "_blank");
+    }
+
   </script>
 
-  <script
-    type="text/javascript"
-    src="./mdb.umd.min.js"
-  ></script>
-  </body>
+  <script type="text/javascript" src="./mdb.umd.min.js"></script>
+</body>
 </html>
