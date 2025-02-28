@@ -41,6 +41,11 @@ tool_answer = ""
 # Store chat history
 chat_logs = {}
 
+init_db()
+init_chats()
+init_bot()
+init_faq()
+
 app.add_middleware(
   CORSMiddleware,
   allow_origins=["*"], 
@@ -148,11 +153,6 @@ class DynamicToolFactory:
 # Initialize and create tools
 tool_factory = DynamicToolFactory(df_tools)
 tool_factory.create_tools()
-
-init_db()
-init_chats()
-init_bot()
-init_faq()
 
 # =====================
 #   Define Tools
