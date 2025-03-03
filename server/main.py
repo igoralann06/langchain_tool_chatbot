@@ -244,7 +244,7 @@ async def chat(user_message, sid):
 
                 Please provide a clear and response with enough informations in English, using only the FAQ answer.
                 Please stylize the above text with symbols so that it's easy to understand the text.
-                Respond only as html.
+                Respond only as html. Do not list the faqs.
                 If you don't know any informations using above QAs completely, You must simply answer same as 'please contact support'
                 """
             )
@@ -321,6 +321,15 @@ def download_faq():
         headers={"Content-Disposition": "attachment; filename=faq_list.csv"}
     )
 
+@app.post("/botstatus")
+async def get_bot_status(request: Request):
+    data = await request.json()
+    print("botstatus "+data["sid"])
+    if(data["checked"]):
+        delete_bot(data["sid"])
+    else:
+        add_bot(data["sid"])
+
 
 @sio.event
 async def connect(sid, environ):
@@ -347,7 +356,7 @@ async def message(sid, data):
         message = data['message']
         print(f"Message from {sid} in room {room}: {message}")
         add_chat(message, sid, False);
-        await sio.emit('message', {'sid': sid, 'message': message}, room=room)
+        await sio.emit('message', {'sid': sid, 'message': message, 'bot': get_bot_by_id(sid)}, room=room)
 
         bot = get_bot_by_id(room)
         if not bot:
@@ -383,6 +392,12 @@ async def ignore(sid, data):
 async def bot(sid, data):
     print("bot "+data["room"])
     add_bot(data["room"])
+
+@sio.event
+async def typing(sid, data):
+    print("typing "+data["sid"])
+    await sio.emit("typingstatus", {"sid": data["sid"], "typing": data["typing"]}, skip_sid=sid)
+
 
 @sio.event
 async def disconnect(sid):

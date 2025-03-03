@@ -1,4 +1,5 @@
 import sqlite3
+from db_chats import get_question
 
 DB_PATH = 'database.db'
 
@@ -38,10 +39,11 @@ def get_questions():
         rows = cursor.fetchall()
 
         # Return the result as a list of dictionaries
-        return [{"id": row["id"], "sid": row["sid"]} for row in rows]
+        return [{"id": row["id"], "sid": row["sid"], "question": get_question(row["sid"])[0]["text"]} for row in rows]
     
 def delete_question(sid):
     # Open a new connection and set row factory
+    print(sid)
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
