@@ -164,7 +164,7 @@ class fallbackModel(BaseModel):
 def fallback_handler(message: str) -> str:
    response = openai.ChatCompletion.create(
       model="gpt-4",
-      messages=[{"role": "system", "content": "I am the chatbot from Ventano to help. You have to introduce yourself simply like 'I am  the chatbot from Ventano. How can I help you' when the user say 'Hello'. If you don't know about the customer's question, you must use 'I don't know at first'"},
+      messages=[{"role": "system", "content": "I am the chatbot from Ventano, here to assist you. When the user greets you, respond warmly and introduce yourself by saying something like: 'Hi, I’m the chatbot from Ventano. How can I assist you today?"},
                 {"role": "user", "content": message}])
    return response["choices"][0]["message"]["content"]
 
@@ -202,13 +202,17 @@ def translate_to_german(text: str) -> str:
   prompt = f"Translate the following English text to German: {text}"
   return llm.predict(prompt)
 
-
-def log_for_ai_training(chat_history):
-    """Store human-handled conversations for AI learning."""
-    
-    with open("ai_training_data.json", "a", encoding="utf-8") as file:
-        json.dump(chat_history, file, ensure_ascii=False)
-        file.write("\n")  # New line for each conversation
+def stylize(text: str) -> str:
+    """
+        Please stylize the above text with symbols so that it's easy to understand the text.
+    """
+    prompt = f"""
+        Translate the following text to German.
+        
+        Following is the text.
+        {text}
+    """
+    return llm.predict(prompt)
 
 
 async def chat(user_message, sid):
@@ -224,26 +228,41 @@ async def chat(user_message, sid):
 
     if similar_faqs:
         relevant_faqs = [faq for faq, score in similar_faqs if score < SIMILARITY_THRESHOLD]
-
+        print(relevant_faqs)
         if relevant_faqs:
             faq_content = "\n".join(
-                [f"Q: {faq.page_content}\nA: {faq.metadata['answer']}" for faq in relevant_faqs]
+                [f"{faq.page_content} : {faq.metadata['answer']}" for faq in relevant_faqs]
             )
 
             # Ask GPT-4 to summarize and tailor the response
             prompt = PromptTemplate.from_template(
-                "The user asked: {user_query}\nHere are some relevant FAQs:\n{faq_content}\nPlease provide a helpful, combined response in German simply. Do not mention anything except only necessary answer to question. Please do not list the faqs."
+                """
+                The user asked: {user_query}  
+                Here are the useful QAs from the FAQs:  
+
+                {faq_content}  
+
+                Please provide a clear and response with enough informations in English, using only the FAQ answer.
+                Please stylize the above text with symbols so that it's easy to understand the text.
+                Respond only as html.
+                If you don't know any informations using above QAs completely, You must simply answer same as 'please contact support'
+                """
             )
 
             response = await asyncio.to_thread(
                 lambda: llm.predict(prompt.format(user_query=translated_query, faq_content=faq_content))
             )
 
-            return response
+            if "please contact support" in response.lower():
+                add_question(sid)
+                
+            final_response = await asyncio.to_thread(translate_to_german, response)
+
+            return final_response
 
     async def process_request():
         global tool_answer
-        response = await asyncio.to_thread(agent.run, translated_query + "If you don't know the answer, simply answer 'I dont know. please contact support'")
+        response = await asyncio.to_thread(agent.run, "I am the chatbot from Ventano, here to assist you. When the user greets you, respond warmly and introduce yourself by saying something like: 'Hi, I’m the chatbot from Ventano. How can I assist you today? If you don't know the answer, you must simply answer same as 'I dont know. please contact support'"+translated_query)
 
         if tool_answer:
             response = tool_answer
@@ -251,29 +270,16 @@ async def chat(user_message, sid):
 
         # Handoff logic: If the AI is not confident, escalate to human agent
         if "please contact support" in response.lower():
-            chat_id = save_chat_history(user_message, response, handoff=True)
             add_question(sid)
-            print(chat_id)
-            # return response
 
         final_response = await asyncio.to_thread(translate_to_german, response)
 
         return final_response
 
     response = await process_request()
-
-    chat_id = save_chat_history(user_message, response)
-    print(chat_id)
+    
+    # print(response)
     return response
-
-
-def save_chat_history(user_message, ai_response, handoff=False):
-    chat_id = str(len(chat_logs) + 1)
-    chat_logs[chat_id] = {
-        "messages": [{"role": "user", "content": user_message}, {"role": "ai", "content": ai_response}],
-        "handoff": handoff
-    }
-    return chat_id
 
 def get_chat_history(chat_id):
     return chat_logs.get(chat_id, {}).get("messages", [])

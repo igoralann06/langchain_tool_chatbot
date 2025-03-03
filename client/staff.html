@@ -74,8 +74,8 @@
     });
 
     // socket.io
-    // const socket = io("http://127.0.0.1:8000");
-    const socket = io("http://www.flamboyant-nightingale.217-154-6-69.plesk.page/socket.io/");
+    const socket = io("http://127.0.0.1:8000");
+    // const socket = io("http://www.flamboyant-nightingale.217-154-6-69.plesk.page/");
 
     // Join room 12345
     socket.emit('join', { room: 'admin' });
@@ -316,7 +316,7 @@
     }
 
     // Set the interval to fetch the customer list every 5 seconds
-    setInterval(fetchCustomerList, 5000);
+    setInterval(fetchCustomerList, 3000);
 
     // Fetch the customer list when the page loads for the first time
     window.onload = fetchCustomerList;

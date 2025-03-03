@@ -26,8 +26,6 @@ def add_chat(text, sid, status):
         ''', (text, sid, status))
         conn.commit()
 
-        print("Question saved successfully!")
-
 def get_chats(sid):
     # Open a new connection and set row factory
     with sqlite3.connect(DB_PATH) as conn:

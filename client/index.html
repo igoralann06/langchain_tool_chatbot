@@ -12,6 +12,10 @@
   <script>
     let chatMessages;
     let chatInput;
+    let isBotTyping = false;
+    let typingInterval;
+    let typingDots = 0;
+    let typingMessage;
 
     document.addEventListener("DOMContentLoaded", function () {
       // Chat Button
@@ -79,7 +83,7 @@
       chatContainer.appendChild(chatMessages);
       
       // Typing Indicator
-      const typingMessage = document.createElement("div");
+      typingMessage = document.createElement("div");
       typingMessage.classList.add("typing");
       typingMessage.innerText = "Der Bot tippt.";
       typingMessage.style.cssText = `
@@ -106,10 +110,6 @@
       chatInputContainer.appendChild(sendButton);
       chatContainer.appendChild(chatInputContainer);
       
-      let isBotTyping = false;
-      let typingInterval;
-      let typingDots = 0;
-      
       // Typing Animation
       function startTyping() {
         typingMessage.style.display = "block";
@@ -118,11 +118,6 @@
           typingDots = (typingDots + 1) % 4;
           typingMessage.innerText = "Der Bot tippt" + ".".repeat(typingDots);
         }, 200);
-      }
-      
-      function stopTyping() {
-        clearInterval(typingInterval);
-        typingMessage.style.display = "none";
       }
       
       // Send Message
@@ -135,7 +130,7 @@
           sendButton.disabled = false;
 
           sendMessageThread(userText);
-          // startTyping();
+          startTyping();
           
           // Simulate bot response
           // isBotTyping = true;
@@ -222,9 +217,14 @@
         }
     }
 
+    function stopTyping() {
+        clearInterval(typingInterval);
+        typingMessage.style.display = "none";
+    }
+
     // socket.io
-    // const socket = io("http://127.0.0.1:8000");
-    const socket = io("http://www.flamboyant-nightingale.217-154-6-69.plesk.page/socket.io/");
+    const socket = io("http://127.0.0.1:8000");
+    // const socket = io("http://www.flamboyant-nightingale.217-154-6-69.plesk.page");
 
     let currentUserSid = null;
 
@@ -246,17 +246,13 @@
           chatMessages.appendChild(userMessage);
           chatMessages.scrollTop = chatMessages.scrollHeight;
       } else {
-          // chatInput.disabled = false;
-          // sendButton.disabled = false;
-          // chatInput.focus();
-          // isBotTyping = false;
-          
-          // Append bot response
           const botMessage = document.createElement("div");
           botMessage.classList.add("bot-message");
           botMessage.innerHTML = `<span>${data.message.replace(/([.?!])\s*(?=[A-Z])/g, '$1<br>')}</span>`;
           chatMessages.appendChild(botMessage);
           chatMessages.scrollTop = chatMessages.scrollHeight;
+          stopTyping();
+          isBotTyping = false;
       }
     });
 
