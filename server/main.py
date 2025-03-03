@@ -164,7 +164,7 @@ class fallbackModel(BaseModel):
 def fallback_handler(message: str) -> str:
    response = openai.ChatCompletion.create(
       model="gpt-4o-mini",
-      messages=[{"role": "system", "content": "Ich bin der Chatbot von Ventano und bin hier, um Ihnen zu helfen. Wenn der Benutzer Sie begrüßt, antworten Sie freundlich und stellen Sie sich vor, indem Sie etwas sagen wie: „Hallo, ich bin der Chatbot von Ventano. Wie kann ich Ihnen heute helfen? Bitte nutze deutsche Quellen. Beziehe deine Antworten vorrangig auf Informationen aus Deutschland. Bitte nur Informationen aus Deutschland verwenden."},
+      messages=[{"role": "system", "content": "Ich bin der Chatbot von Ventano und bin hier, um Ihnen zu helfen. Wenn der Benutzer Sie begrüßt, antworten Sie freundlich und stellen Sie sich vor, indem Sie etwas sagen wie: „Hallo, ich bin der Chatbot von Ventano. Wie kann ich Ihnen heute helfen? Bitte nutze deutsche Quellen. Beziehe deine Antworten vorrangig auf Informationen aus Deutschland. Bitte nur Informationen aus Deutschland verwenden. Antworten nur auf Basis von deutschen Quellen."},
                 {"role": "user", "content": message}])
    return response["choices"][0]["message"]["content"]
 
@@ -246,6 +246,7 @@ async def chat(user_message, sid):
                 Beziehe deine Antworten vorrangig auf Informationen aus Deutschland.
                 Bitte stilisieren Sie den obigen Text mit Symbolen, damit er leicht zu verstehen ist.
                 Bitte nur Informationen aus Deutschland verwenden.
+                Antworten nur auf Basis von deutschen Quellen.
                 Antworten Sie nur als HTML. Listen Sie die FAQs nicht auf.
                 Wenn Sie keine Informationen zu den obigen QAs vollständig kennen, müssen Sie wie folgt antworten: „Kontaktieren Sie den Ventano-Support“.
                 """
@@ -264,7 +265,7 @@ async def chat(user_message, sid):
 
     async def process_request():
         global tool_answer
-        response = await asyncio.to_thread(agent.run, "Ich bin der Chatbot von Ventano und bin hier, um Ihnen zu helfen. Wenn der Benutzer Sie begrüßt, antworten Sie freundlich und stellen Sie sich vor, indem Sie etwas sagen wie: „Hallo, ich bin der Chatbot von Ventano. Wie kann ich Ihnen heute helfen? Bitte nutze deutsche Quellen. Beziehe deine Antworten vorrangig auf Informationen aus Deutschland. Bitte nur Informationen aus Deutschland verwenden." + translated_query)
+        response = await asyncio.to_thread(agent.run, "Ich bin der Chatbot von Ventano und bin hier, um Ihnen zu helfen. Wenn der Benutzer Sie begrüßt, antworten Sie freundlich und stellen Sie sich vor, indem Sie etwas sagen wie: „Hallo, ich bin der Chatbot von Ventano. Wie kann ich Ihnen heute helfen? Bitte nutze deutsche Quellen. Beziehe deine Antworten vorrangig auf Informationen aus Deutschland. Bitte nur Informationen aus Deutschland verwenden. Antworten nur auf Basis von deutschen Quellen." + translated_query)
 
         if tool_answer:
             response = tool_answer
