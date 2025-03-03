@@ -163,8 +163,8 @@ class fallbackModel(BaseModel):
 
 def fallback_handler(message: str) -> str:
    response = openai.ChatCompletion.create(
-      model="gpt-4",
-      messages=[{"role": "system", "content": "I am the chatbot from Ventano, here to assist you. When the user greets you, respond warmly and introduce yourself by saying something like: 'Hi, I’m the chatbot from Ventano. How can I assist you today?"},
+      model="gpt-4o-mini",
+      messages=[{"role": "system", "content": "Ich bin der Chatbot von Ventano und bin hier, um Ihnen zu helfen. Wenn der Benutzer Sie begrüßt, antworten Sie freundlich und stellen Sie sich vor, indem Sie etwas sagen wie: „Hallo, ich bin der Chatbot von Ventano. Wie kann ich Ihnen heute helfen? Bitte nutze deutsche Quellen. Beziehe deine Antworten vorrangig auf Informationen aus Deutschland. Bitte nur Informationen aus Deutschland verwenden."},
                 {"role": "user", "content": message}])
    return response["choices"][0]["message"]["content"]
 
@@ -198,18 +198,17 @@ def translate_to_english(text: str) -> str:
   return llm.predict(prompt)
 
 def translate_to_german(text: str) -> str:
-  """Translate English text to German using GPT-4."""
-  prompt = f"Translate the following English text to German: {text}"
+  """Übersetzen Sie englischen Text mit GPT-4 ins Deutsche."""
+  prompt = f"Übersetzen Sie den folgenden englischen Text ins Deutsche: {text}"
   return llm.predict(prompt)
 
 def stylize(text: str) -> str:
     """
-        Please stylize the above text with symbols so that it's easy to understand the text.
+        Bitte stilisieren Sie den obigen Text mit Symbolen, damit er leicht lesbar ist.
     """
     prompt = f"""
-        Translate the following text to German.
-        
-        Following is the text.
+        Übersetzen Sie den folgenden Text ins Deutsche.
+        Nachfolgend der Text.
         {text}
     """
     return llm.predict(prompt)
@@ -218,7 +217,7 @@ def stylize(text: str) -> str:
 async def chat(user_message, sid):
     global tool_answer
 
-    translated_query = await asyncio.to_thread(translate_to_english, user_message)
+    translated_query = await asyncio.to_thread(translate_to_german, user_message)
 
     similar_faqs = await asyncio.to_thread(
         lambda: vector_db.similarity_search_with_score(translated_query, k=5)
@@ -237,15 +236,18 @@ async def chat(user_message, sid):
             # Ask GPT-4 to summarize and tailor the response
             prompt = PromptTemplate.from_template(
                 """
-                The user asked: {user_query}  
-                Here are the useful QAs from the FAQs:  
+                Der Benutzer hat gefragt: {user_query}
+                Hier sind die nützlichen QAs aus den FAQs:
 
                 {faq_content}  
 
-                Please provide a clear and response with enough informations in English, using only the FAQ answer.
-                Please stylize the above text with symbols so that it's easy to understand the text.
-                Respond only as html. Do not list the faqs.
-                If you don't know any informations using above QAs completely, You must answer like 'contact ventano support'
+                Bitte geben Sie eine klare und ausreichend informative Antwort auf Englisch und verwenden Sie dabei nur die FAQ-Antwort.
+                Bitte nutze deutsche Quellen.
+                Beziehe deine Antworten vorrangig auf Informationen aus Deutschland.
+                Bitte stilisieren Sie den obigen Text mit Symbolen, damit er leicht zu verstehen ist.
+                Bitte nur Informationen aus Deutschland verwenden.
+                Antworten Sie nur als HTML. Listen Sie die FAQs nicht auf.
+                Wenn Sie keine Informationen zu den obigen QAs vollständig kennen, müssen Sie wie folgt antworten: „Kontaktieren Sie den Ventano-Support“.
                 """
             )
 
@@ -253,7 +255,7 @@ async def chat(user_message, sid):
                 lambda: llm.predict(prompt.format(user_query=translated_query, faq_content=faq_content))
             )
 
-            if "contact ventano support" in response.lower():
+            if "Kontaktieren Sie den Ventano-Support" in response.lower():
                 add_question(sid)
                 
             final_response = await asyncio.to_thread(translate_to_german, response)
@@ -262,14 +264,14 @@ async def chat(user_message, sid):
 
     async def process_request():
         global tool_answer
-        response = await asyncio.to_thread(agent.run, "I am the chatbot from Ventano, here to assist you. When the user greets you, respond warmly and introduce yourself by saying something like: 'Hi, I’m the chatbot from Ventano. How can I assist you today? If you don't know the answer, you must answer like 'contact ventano support'"+translated_query)
+        response = await asyncio.to_thread(agent.run, "Ich bin der Chatbot von Ventano und bin hier, um Ihnen zu helfen. Wenn der Benutzer Sie begrüßt, antworten Sie freundlich und stellen Sie sich vor, indem Sie etwas sagen wie: „Hallo, ich bin der Chatbot von Ventano. Wie kann ich Ihnen heute helfen? Bitte nutze deutsche Quellen. Beziehe deine Antworten vorrangig auf Informationen aus Deutschland. Bitte nur Informationen aus Deutschland verwenden." + translated_query)
 
         if tool_answer:
             response = tool_answer
             tool_answer = ""
 
         # Handoff logic: If the AI is not confident, escalate to human agent
-        if "contact ventano support" in response.lower():
+        if "Kontaktieren Sie den Ventano-Support" in response.lower():
             add_question(sid)
 
         final_response = await asyncio.to_thread(translate_to_german, response)

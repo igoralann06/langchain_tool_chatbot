@@ -6,6 +6,83 @@
   <title>Ventano Chat</title>
   <link href="./style.css" rel="stylesheet"/>
   <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+    }
+
+    .chat-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 320px;
+      height: 400px;
+      display: none;
+      flex-direction: column;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      z-index: 1000;
+      transition: all 0.3s ease;
+    }
+
+    .chat-header {
+      padding: 10px;
+      background: #dd5920;
+      color: white;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .chat-messages {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-input-container {
+      display: flex;
+      padding: 10px;
+      border-top: 1px solid #ccc;
+    }
+
+    .chat-input {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      resize: none;
+    }
+
+    .send-button {
+      margin-left: 10px;
+      padding: 10px;
+      background: #dd5920;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .typing {
+      padding: 5px 10px;
+      font-size: 12px;
+      color: #666;
+    }
+
+    /* Responsive Styles */
+    @media screen and (max-width: 600px) {
+      .chat-container {
+        width: 90vw;
+        height: 80vh;
+        bottom: 10px;
+        right: 5px;
+      }
+    }
+  </style>
 </head>
 <body>
 
@@ -71,8 +148,8 @@
       maximizeButton.addEventListener("click", () => {
         isMaximized = !isMaximized;
         isMaximized ? maximizeButton.innerText = "⛶" : maximizeButton.innerText = "🔳";
-        chatContainer.style.width = isMaximized ? "100vw" : "400px";
-        chatContainer.style.height = isMaximized ? "100vh" : "400px";
+        chatContainer.style.width = isMaximized ? "100vw" : "320px";
+        chatContainer.style.height = isMaximized ? "100vh" : "600px";
         chatContainer.style.top = isMaximized ? "0" : "auto";
         chatContainer.style.left = isMaximized ? "0" : "auto";
       });
@@ -145,8 +222,8 @@
       function toggleChat() {
         chatOpen = !chatOpen;
         chatContainer.style.display = chatOpen ? "flex" : "none";
-        chatContainer.style.width = "400px";
-        chatContainer.style.height = "400px";
+        chatContainer.style.width = "320px";
+        chatContainer.style.height = "600px";
         setTimeout(() => {
           chatContainer.style.opacity = chatOpen ? "1" : "0";
           chatContainer.style.transform = chatOpen ? "scale(1)" : "scale(0.8)";

@@ -20,9 +20,15 @@
   <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
 </head>
 <body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">Ventano Dashboard</a>
+      <button class="btn btn-light btn-rounded" onclick="download()">Download FAQs</button>
+    </div>
+  </nav>
+
   <section class="gradient-custom">
     <div class="container">
-      <button type="button" data-mdb-button-init data-mdb-ripple-init class="btn btn-light btn-lg btn-rounded float-end mx-1 my-3" onclick="download()">Download FAQs</button>
       <div class="row">
         <div class="col-md-6 col-lg-5 col-xl-5 mb-4 mb-md-0">
           <h5 class="font-weight-bold my-3 text-center text-white">Kunden</h5>
@@ -226,7 +232,7 @@
                             <img src="./img/user.png" alt="avatar"
                                 class="rounded-circle d-flex align-self-center me-3 shadow-1-strong" width="60">
                             <div class="pt-1">
-                                <p class="fw-bold mb-0">${customer.sid}</p>
+                                <p class="fw-bold mb-0">${customer.sid.substr(0,6)}</p>
                                 <p class="small text-white">${customer.question}</p>
                             </div>
                         </div>
