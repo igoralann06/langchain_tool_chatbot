@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chat Widget</title>
+  <title>Ventano Chat</title>
   <link href="./style.css" rel="stylesheet"/>
   <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
 </head>
@@ -99,7 +99,16 @@
       
       chatInput = document.createElement("textarea");
       chatInput.classList.add("chat-input");
-      chatInput.placeholder = "Geben Sie eine Nachricht ein...";
+
+      chatInput.addEventListener("input", () => {
+          socket.emit("typing", { sid: currentUserSid, typing: chatInput.value.length > 0 });
+      });
+
+      chatInput.addEventListener("blur", () => {
+          socket.emit("typing", { sid: currentUserSid, typing: false });
+      });
+
+      chatInput.placeholder = "Bitte tipp ein...";
       chatInput.rows = 3;
       
       const sendButton = document.createElement("button");
@@ -109,16 +118,6 @@
       chatInputContainer.appendChild(chatInput);
       chatInputContainer.appendChild(sendButton);
       chatContainer.appendChild(chatInputContainer);
-      
-      // Typing Animation
-      function startTyping() {
-        typingMessage.style.display = "block";
-        typingDots = 0;
-        typingInterval = setInterval(() => {
-          typingDots = (typingDots + 1) % 4;
-          typingMessage.innerText = "Der Bot tippt" + ".".repeat(typingDots);
-        }, 200);
-      }
       
       // Send Message
       function sendMessage() {
@@ -130,38 +129,6 @@
           sendButton.disabled = false;
 
           sendMessageThread(userText);
-          startTyping();
-          
-          // Simulate bot response
-          // isBotTyping = true;
-          // fetch("/chat", {
-          //   method: "POST",
-          //   headers: { "Content-Type": "application/json" },
-          //   body: JSON.stringify({ message: userText }),
-          // })
-          // .then(response => response.json())
-          // .then(data => {
-          //   stopTyping();
-          //   chatInput.disabled = false;
-          //   sendButton.disabled = false;
-          //   chatInput.focus();
-          //   isBotTyping = false;
-            
-          //   // Append bot response
-          //   const botMessage = document.createElement("div");
-          //   botMessage.classList.add("bot-message");
-          //   botMessage.innerHTML = `<span>${data.response.replace(/([.?!])\s*(?=[A-Z])/g, '$1<br>')}</span>`;
-          //   chatMessages.appendChild(botMessage);
-          //   chatMessages.scrollTop = chatMessages.scrollHeight;
-          // })
-          // .catch(error => {
-          //   console.error("Error:", error);
-          //   stopTyping();
-          //   chatInput.disabled = false;
-          //   sendButton.disabled = false;
-          //   chatInput.focus();
-          //   isBotTyping = false;
-          // });
         }
       }
       
@@ -217,14 +184,24 @@
         }
     }
 
+    // Typing Animation
+    function startTyping() {
+        typingMessage.style.display = "block";
+        typingDots = 0;
+        typingInterval = setInterval(() => {
+          typingDots = (typingDots + 1) % 4;
+          typingMessage.innerText = "Der Bot tippt..." 
+        }, 200);
+    }
+
     function stopTyping() {
         clearInterval(typingInterval);
         typingMessage.style.display = "none";
     }
 
     // socket.io
-    const socket = io("http://127.0.0.1:8000");
-    // const socket = io("http://www.flamboyant-nightingale.217-154-6-69.plesk.page");
+    // const socket = io("http://127.0.0.1:8000");
+    const socket = io("http://217.154.69.192");
 
     let currentUserSid = null;
 
@@ -245,6 +222,9 @@
           userMessage.innerHTML = `<span><label>${data.message.replace(/([.?!])\s*(?=[A-Z])/g, '$1<br>')}</label></span>`;
           chatMessages.appendChild(userMessage);
           chatMessages.scrollTop = chatMessages.scrollHeight;
+          if(!data.bot) {
+            startTyping();
+          }
       } else {
           const botMessage = document.createElement("div");
           botMessage.classList.add("bot-message");
@@ -254,6 +234,15 @@
           stopTyping();
           isBotTyping = false;
       }
+    });
+
+    socket.on("typingstatus", (data) => {
+        console.log(data.typing);
+        if (data.typing) {
+            startTyping();
+        } else {
+            stopTyping();
+        }
     });
 
     function sendMessageThread(message) {

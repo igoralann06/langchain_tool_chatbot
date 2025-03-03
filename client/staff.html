@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chat Widget</title>
+  <title>Ventano Chat Dashboard</title>
   <link
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
     rel="stylesheet"
@@ -53,8 +53,8 @@
             <button type="button" data-mdb-button-init data-mdb-ripple-init class="btn btn-light btn-lg btn-rounded float-end mx-1" onclick="sendMessage()">Send</button>
             <button type="button" data-mdb-button-init data-mdb-ripple-init class="btn btn-light btn-lg btn-rounded float-end mx-1" onclick="ignore()">Leave</button>
             <div class="form-check form-switch text-white">
-              <input class="form-check-input" type="checkbox" role="switch" id="aimessage" disabled/>
-              <label class="form-check-label" for="flexSwitchCheckDefault">AI bot answering</label>
+              <input class="form-check-input" type="checkbox" role="switch" id="aimessage"/>
+              <label class="form-check-label" for="flexSwitchCheckDefault">AI bot</label>
             </div>
           </div>
         </div>
@@ -74,8 +74,8 @@
     });
 
     // socket.io
-    const socket = io("http://127.0.0.1:8000");
-    // const socket = io("http://www.flamboyant-nightingale.217-154-6-69.plesk.page/");
+    // const socket = io("http://127.0.0.1:8000");
+    const socket = io("http://217.154.69.192");
 
     // Join room 12345
     socket.emit('join', { room: 'admin' });
@@ -101,6 +101,16 @@
         } else {
             appendOtherMessage(message);
         }
+    });
+
+    let messageInput = document.getElementById("textArea");
+
+    messageInput.addEventListener("input", () => {
+        socket.emit("typing", { sid: currentUserSid, typing: messageInput.value.length > 0 });
+    });
+
+    messageInput.addEventListener("blur", () => {
+        socket.emit("typing", { sid: currentUserSid, typing: false });
     });
 
     // Send message
@@ -144,9 +154,9 @@
       cardHeader.innerHTML = `<p class="fw-bold mb-0">User</p><p class="text-light small mb-0"><i class="far fa-clock"></i></p>`;
 
       const cardBody = document.createElement("div");
-      cardBody.classList.add("card-body");
+      cardBody.classList.add("card-body", "text-white");
       // Using innerHTML to ensure the paragraph maintains styles and supports line breaks
-      cardBody.innerHTML = `<p class="mb-0 text-white" style="white-space: pre-wrap; word-wrap: break-word;">${message}</p>`;
+      cardBody.innerHTML = `<p class="mb-0" style="white-space: pre-wrap; word-wrap: break-word;">${message}</p>`;
 
       const cardIcon = document.createElement("img");
       cardIcon.classList.add("rounded-circle", "d-flex", "align-self-start", "ms-3", "shadow-1-strong");
@@ -177,9 +187,9 @@
       cardHeader.innerHTML = `<p class="fw-bold mb-0">User</p><p class="text-light small mb-0"><i class="far fa-clock"></i></p>`;
 
       const cardBody = document.createElement("div");
-      cardBody.classList.add("card-body");
+      cardBody.classList.add("card-body", "text-white");
       // Using innerHTML to ensure the paragraph maintains styles and supports line breaks
-      cardBody.innerHTML = `<p class="mb-0 text-white" style="white-space: pre-wrap; word-wrap: break-word;">${message}</p>`;
+      cardBody.innerHTML = `<p class="mb-0" style="white-space: pre-wrap; word-wrap: break-word;">${message}</p>`;
 
       const cardIcon = document.createElement("img");
       cardIcon.classList.add("rounded-circle", "d-flex", "align-self-start", "me-3", "shadow-1-strong");
@@ -217,6 +227,7 @@
                                 class="rounded-circle d-flex align-self-center me-3 shadow-1-strong" width="60">
                             <div class="pt-1">
                                 <p class="fw-bold mb-0">${customer.sid}</p>
+                                <p class="small text-white">${customer.question}</p>
                             </div>
                         </div>
                     </a>
@@ -316,7 +327,7 @@
     }
 
     // Set the interval to fetch the customer list every 5 seconds
-    setInterval(fetchCustomerList, 3000);
+    setInterval(fetchCustomerList, 1000);
 
     // Fetch the customer list when the page loads for the first time
     window.onload = fetchCustomerList;
@@ -332,6 +343,31 @@
     function download() {
       window.open("/download-faq", "_blank");
     }
+
+    document.getElementById("aimessage").addEventListener("click", async (e) => {
+        const url = "/botstatus";
+        const data = { sid: roomid, checked: e.target.checked };
+        console.log(data)
+
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            
+        } catch (error) {
+            console.error("Error:", error);
+        }
+    });
 
   </script>
 
