@@ -245,7 +245,7 @@ async def chat(user_message, sid):
                 Please provide a clear and response with enough informations in English, using only the FAQ answer.
                 Please stylize the above text with symbols so that it's easy to understand the text.
                 Respond only as html. Do not list the faqs.
-                If you don't know any informations using above QAs completely, You must simply answer same as 'please contact support'
+                If you don't know any informations using above QAs completely, You must answer like 'please contact support'
                 """
             )
 
@@ -262,7 +262,7 @@ async def chat(user_message, sid):
 
     async def process_request():
         global tool_answer
-        response = await asyncio.to_thread(agent.run, "I am the chatbot from Ventano, here to assist you. When the user greets you, respond warmly and introduce yourself by saying something like: 'Hi, I’m the chatbot from Ventano. How can I assist you today? If you don't know the answer, you must simply answer same as 'I dont know. please contact support'"+translated_query)
+        response = await asyncio.to_thread(agent.run, "I am the chatbot from Ventano, here to assist you. When the user greets you, respond warmly and introduce yourself by saying something like: 'Hi, I’m the chatbot from Ventano. How can I assist you today? If you don't know the answer, you must answer like 'please contact support'"+translated_query)
 
         if tool_answer:
             response = tool_answer
