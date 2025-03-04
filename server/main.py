@@ -159,7 +159,7 @@ tool_factory.create_tools()
 # =====================
 
 class fallbackModel(BaseModel):
-  query: str
+  userQuestion: str
 
 def fallback_handler(userQuestion) -> str:
     response = openai.ChatCompletion.create(
@@ -185,6 +185,25 @@ fallback_tool = StructuredTool(
 )
 
 tools.append(fallback_tool)
+
+# contact support
+class contactSupportModel(BaseModel):
+  channelID: str
+
+def contactSupport_handler(channelID: str) -> str:
+    add_question(channelID)
+    return """
+        Okay, ich leite Sie zu unserem Kundendienstmitarbeiter weiter.
+    """
+
+contactsupport_tool = StructuredTool(
+  name="Contact Support",
+  description="Contact Support",
+  func=contactSupport_handler,
+  args_schema=contactSupportModel
+)
+
+tools.append(contactsupport_tool)
 
 # =====================
 #   Initialize LLM & Agent
@@ -269,7 +288,7 @@ async def chat(user_message, sid):
         )
 
         if "ich bin mir nicht sicher" in response.lower():
-            add_question(sid)
+            return await asyncio.to_thread(stylize, "Es tut mir leid, ich kann die Antwort nicht finden. Bitte kontaktieren Sie unseren Kundensupport")
             
         final_response = await asyncio.to_thread(stylize, response)
 
@@ -277,12 +296,13 @@ async def chat(user_message, sid):
 
     async def process_request():
         global tool_answer
-        response = await asyncio.to_thread(agent.run, """
+        response = await asyncio.to_thread(agent.run, f"""
             Bitte verwenden Sie deutsche Quellen. 
             Basieren Sie Ihre Antworten hauptsächlich auf Informationen aus Deutschland. 
             Bitte verwenden Sie nur Informationen aus Deutschland. 
             Antworten basieren nur auf deutschen Quellen. 
             Senden Sie die Antwort nur mit der HTML-Struktur zurück. 
+            Sie sprechen auf Kanal (ID:{sid})
             Sie erhalten Beobachterdaten im HTML-Format. 
             Behalten Sie die ursprüngliche HTML-Struktur in der endgültigen Antwort bei. Entfernen Sie keine HTML-Tags.
             Wenn Sie die Antwort nicht wissen, müssen Sie einfach sagen: „Ich bin mir nicht sicher“
@@ -296,7 +316,7 @@ async def chat(user_message, sid):
         # Handoff logic: If the AI is not confident, escalate to human agent
         if "ich bin mir nicht sicher" in response.lower():
             print("Ich!!!")
-            add_question(sid)
+            return await asyncio.to_thread(translate_to_german, "Es tut mir leid, ich kann die Antwort nicht finden. Bitte kontaktieren Sie unseren Kundensupport")
 
         final_response = await asyncio.to_thread(translate_to_german, response)
 
