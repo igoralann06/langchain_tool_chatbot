@@ -296,7 +296,7 @@
           // Append user message
           const userMessage = document.createElement("div");
           userMessage.classList.add("user-message");
-          userMessage.innerHTML = `<span><label>${data.message.replace(/([.?!])\s*(?=[A-Z])/g, '$1<br>')}</label></span>`;
+          userMessage.innerHTML = `<div>${data.message}</div>`;
           chatMessages.appendChild(userMessage);
           chatMessages.scrollTop = chatMessages.scrollHeight;
           if(!data.bot) {
@@ -305,7 +305,9 @@
       } else {
           const botMessage = document.createElement("div");
           botMessage.classList.add("bot-message");
-          botMessage.innerHTML = `<span>${data.message.replace(/([.?!])\s*(?=[A-Z])/g, '$1<br>')}</span>`;
+          console.log(data.message);
+          // botMessage.innerHTML = `<span>${data.message.replace(/([.?!])\s*(?=[A-Z])/g, '$1<br>')}</span>`;
+          botMessage.innerHTML = `<div>${data.message.replace("\r\n", "<br/>").replace("\n", "<br/>")}</div>`;
           chatMessages.appendChild(botMessage);
           chatMessages.scrollTop = chatMessages.scrollHeight;
           stopTyping();

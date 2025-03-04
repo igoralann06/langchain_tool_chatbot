@@ -161,16 +161,25 @@ tool_factory.create_tools()
 class fallbackModel(BaseModel):
   query: str
 
-def fallback_handler(message: str) -> str:
-   response = openai.ChatCompletion.create(
-      model="gpt-4o-mini",
-      messages=[{"role": "system", "content": "Ich bin der Chatbot von Ventano und bin hier, um Ihnen zu helfen. Wenn der Benutzer Sie begrüßt, antworten Sie freundlich und stellen Sie sich vor, indem Sie etwas sagen wie: „Hallo, ich bin der Chatbot von Ventano. Wie kann ich Ihnen heute helfen? Bitte nutze deutsche Quellen. Beziehe deine Antworten vorrangig auf Informationen aus Deutschland. Bitte nur Informationen aus Deutschland verwenden. Antworten nur auf Basis von deutschen Quellen."},
-                {"role": "user", "content": message}])
-   return response["choices"][0]["message"]["content"]
+def fallback_handler(userQuestion) -> str:
+    response = openai.ChatCompletion.create(
+        model="gpt-4",
+        temperature=0.7,
+        messages=[{"role": "system", "content": """ 
+                    Bitte verwende deutsche Quellen. Basiere deine Antworten hauptsächlich auf Informationen aus Deutschland. Bitte verwende nur Informationen aus Deutschland. 
+                    Antworten basieren nur auf deutschen Quellen. 
+                    Es werden nicht nur die grundlegenden Antworten, sondern auch zusätzliche relevante Informationen benötigt.
+                    Sie müssen so gut wie möglich mit dem Chatgpt-Ergebnis antworten.
+                    Die Antwort muss nur mit der HTML-Struktur zurückgeben und Absatz- und Überschriftenstile enthalten.
+                    Sie erhalten Beobachterdaten im HTML-Format. 
+                    Behalten Sie die ursprüngliche HTML-Struktur in der endgültigen Antwort bei. Entfernen Sie keine HTML-Tags.
+                    """}, {"role": "user", "content": userQuestion}])
+    return response["choices"][0]["message"]["content"]
+    # return response["choices"][0]["message"]["content"]
 
 fallback_tool = StructuredTool(
   name="General",
-  description="General",
+  description="User's general question",
   func=fallback_handler,
   args_schema=fallbackModel
 )
@@ -186,7 +195,7 @@ llm = ChatOpenAI(model_name="gpt-4", openai_api_key=openai_api_key)
 agent = initialize_agent(
   tools=tools,
   llm=llm,
-  agent_type=AgentType.OPENAI_MULTI_FUNCTIONS,
+  agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
   verbose=True,
   handle_parsing_errors=True,
   max_iterations=3
@@ -208,6 +217,7 @@ def stylize(text: str) -> str:
     """
     prompt = f"""
         Übersetzen Sie den folgenden Text ins Deutsche.
+        Bitte stilisieren Sie den obigen Text mit Symbolen, damit er leicht lesbar ist.
         Nachfolgend der Text.
         {text}
     """
@@ -223,56 +233,66 @@ async def chat(user_message, sid):
         lambda: vector_db.similarity_search_with_score(translated_query, k=5)
     )
 
-    SIMILARITY_THRESHOLD = 0.38
+    SIMILARITY_THRESHOLD = 0.25
 
-    if similar_faqs:
-        relevant_faqs = [faq for faq, score in similar_faqs if score < SIMILARITY_THRESHOLD]
-        print(relevant_faqs)
-        if relevant_faqs:
-            faq_content = "\n".join(
-                [f"{faq.page_content} : {faq.metadata['answer']}" for faq in relevant_faqs]
-            )
+    most_similar_faq = min(similar_faqs, key=lambda x: x[1])
+    if most_similar_faq[1] < SIMILARITY_THRESHOLD:
+        faq_content = []
+        for faq, score in similar_faqs:
+            if(score - most_similar_faq[1] < 0.05):
+                faq_content.append(f"{faq.page_content} : {faq.metadata['answer']}")
 
-            # Ask GPT-4 to summarize and tailor the response
-            prompt = PromptTemplate.from_template(
-                """
-                Der Benutzer hat gefragt: {user_query}
-                Hier sind die nützlichen QAs aus den FAQs:
+        print(faq_content)
+        # Ask GPT-4 to summarize and tailor the response
+        prompt = PromptTemplate.from_template(
+            """
+            Der Benutzer hat gefragt: {user_query}
 
-                {faq_content}  
+            Hier ist die relevanteste QA aus den FAQs:
 
-                Bitte geben Sie eine klare und ausreichend informative Antwort auf Englisch und verwenden Sie dabei nur die FAQ-Antwort.
-                Bitte nutze deutsche Quellen.
-                Beziehe deine Antworten vorrangig auf Informationen aus Deutschland.
-                Bitte stilisieren Sie den obigen Text mit Symbolen, damit er leicht zu verstehen ist.
-                Bitte nur Informationen aus Deutschland verwenden.
-                Antworten nur auf Basis von deutschen Quellen.
-                Antworten Sie nur als HTML. Listen Sie die FAQs nicht auf.
-                Wenn Sie keine Informationen zu den obigen QAs vollständig kennen, müssen Sie wie folgt antworten: „Kontaktieren Sie den Ventano-Support“.
-                """
-            )
+            {faq_content}
 
-            response = await asyncio.to_thread(
-                lambda: llm.predict(prompt.format(user_query=translated_query, faq_content=faq_content))
-            )
+            Bitte geben Sie eine klare und informative Antwort auf Englisch und verwenden Sie dabei nur die Informationen aus den FAQ.
+            Befolgen Sie diese Richtlinien:
 
-            if "Kontaktieren Sie den Ventano-Support" in response.lower():
-                add_question(sid)
-                
-            final_response = await asyncio.to_thread(translate_to_german, response)
+            - Verwenden Sie Symbole oder Icons, um die Antwort leicht verständlich zu machen.
+            - Priorisieren Sie Informationen, die für Deutschland relevant sind.
+            - Antworten Sie nur mit HTML-Inhalten für eine bessere Lesbarkeit.
+            - Wenn die Informationen unvollständig oder nicht verfügbar sind, antworten Sie mit: Ich bin nicht sicher
 
-            return final_response
+            Strukturieren Sie die Antwort so, dass sie optisch ansprechend und für Benutzer leicht zu verstehen ist.
+            """
+        )
+
+        response = await asyncio.to_thread(
+            lambda: llm.predict(prompt.format(user_query=translated_query, faq_content=faq_content))
+        )
+
+        if "Ich bin nicht sicher" in response.lower():
+            add_question(sid)
+            
+        final_response = await asyncio.to_thread(stylize, response)
+
+        return final_response
 
     async def process_request():
         global tool_answer
-        response = await asyncio.to_thread(agent.run, "Ich bin der Chatbot von Ventano und bin hier, um Ihnen zu helfen. Wenn der Benutzer Sie begrüßt, antworten Sie freundlich und stellen Sie sich vor, indem Sie etwas sagen wie: „Hallo, ich bin der Chatbot von Ventano. Wie kann ich Ihnen heute helfen? Bitte nutze deutsche Quellen. Beziehe deine Antworten vorrangig auf Informationen aus Deutschland. Bitte nur Informationen aus Deutschland verwenden. Antworten nur auf Basis von deutschen Quellen." + translated_query)
+        response = await asyncio.to_thread(agent.run, """
+            Bitte verwenden Sie deutsche Quellen. 
+            Basieren Sie Ihre Antworten hauptsächlich auf Informationen aus Deutschland. 
+            Bitte verwenden Sie nur Informationen aus Deutschland. 
+            Antworten basieren nur auf deutschen Quellen. 
+            Senden Sie die Antwort nur mit der HTML-Struktur zurück. 
+            Sie erhalten Beobachterdaten im HTML-Format. 
+            Behalten Sie die ursprüngliche HTML-Struktur in der endgültigen Antwort bei. Entfernen Sie keine HTML-Tags.
+            """ + translated_query)
 
         if tool_answer:
             response = tool_answer
             tool_answer = ""
 
         # Handoff logic: If the AI is not confident, escalate to human agent
-        if "Kontaktieren Sie den Ventano-Support" in response.lower():
+        if "Ich bin nicht sicher" in response.lower():
             add_question(sid)
 
         final_response = await asyncio.to_thread(translate_to_german, response)
@@ -364,6 +384,7 @@ async def message(sid, data):
         bot = get_bot_by_id(room)
         if not bot:
             answer = await chat(message, sid)
+            print(answer)
             add_chat(answer, sid, True)
             await sio.emit('message', {'sid': 'bot', 'message': answer}, room=room)
     else:
