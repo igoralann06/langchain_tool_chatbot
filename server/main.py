@@ -258,7 +258,7 @@ async def chat(user_message, sid):
             - Verwenden Sie Symbole oder Icons, um die Antwort leicht verständlich zu machen.
             - Priorisieren Sie Informationen, die für Deutschland relevant sind.
             - Antworten Sie nur mit HTML-Inhalten für eine bessere Lesbarkeit.
-            - Wenn die Informationen unvollständig oder nicht verfügbar sind, antworten Sie mit: Ich bin nicht sicher
+            - Wenn die Informationen unvollständig oder nicht verfügbar sind, antworten Sie mit: Ich bin mir nicht sicher
 
             Strukturieren Sie die Antwort so, dass sie optisch ansprechend und für Benutzer leicht zu verstehen ist.
             """
@@ -268,7 +268,7 @@ async def chat(user_message, sid):
             lambda: llm.predict(prompt.format(user_query=translated_query, faq_content=faq_content))
         )
 
-        if "Ich bin nicht sicher" in response.lower():
+        if "ich bin mir nicht sicher" in response.lower():
             add_question(sid)
             
         final_response = await asyncio.to_thread(stylize, response)
@@ -285,14 +285,17 @@ async def chat(user_message, sid):
             Senden Sie die Antwort nur mit der HTML-Struktur zurück. 
             Sie erhalten Beobachterdaten im HTML-Format. 
             Behalten Sie die ursprüngliche HTML-Struktur in der endgültigen Antwort bei. Entfernen Sie keine HTML-Tags.
+            Wenn Sie die Antwort nicht wissen, müssen Sie einfach sagen: „Ich bin mir nicht sicher“
             """ + translated_query)
 
         if tool_answer:
             response = tool_answer
             tool_answer = ""
 
+        print("result: " + response.lower())
         # Handoff logic: If the AI is not confident, escalate to human agent
-        if "Ich bin nicht sicher" in response.lower():
+        if "ich bin mir nicht sicher" in response.lower():
+            print("Ich!!!")
             add_question(sid)
 
         final_response = await asyncio.to_thread(translate_to_german, response)

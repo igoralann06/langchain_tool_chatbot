@@ -11,22 +11,6 @@
       margin: 0;
     }
 
-    .chat-container {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      width: 320px;
-      height: 400px;
-      display: none;
-      flex-direction: column;
-      background: white;
-      border: 1px solid #ccc;
-      border-radius: 10px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-      z-index: 1000;
-      transition: all 0.3s ease;
-    }
-
     .chat-header {
       padding: 10px;
       background: #dd5920;
@@ -75,6 +59,25 @@
 
     /* Responsive Styles */
     @media screen and (max-width: 600px) {
+      .chat-container {
+        width: 90vw;
+        height: 80vh;
+        bottom: 10px;
+        right: 5px;
+      }
+    }
+
+    /* Responsive Styles */
+    @media screen and (min-width: 1024px) {
+      .chat-container {
+        width: 40vw;
+        height: 70vh;
+        bottom: 20px;
+        right: 20px;
+      }
+    }
+
+    @media screen and (max-width: 1023px) {
       .chat-container {
         width: 90vw;
         height: 80vh;
@@ -147,9 +150,25 @@
       let isMaximized = false;
       maximizeButton.addEventListener("click", () => {
         isMaximized = !isMaximized;
-        isMaximized ? maximizeButton.innerText = "⛶" : maximizeButton.innerText = "🔳";
-        chatContainer.style.width = isMaximized ? "100vw" : "320px";
-        chatContainer.style.height = isMaximized ? "100vh" : "600px";
+        if (isMaximized) {
+          maximizeButton.innerText = "⛶";
+          chatContainer.style.width = "100vw";
+          chatContainer.style.height = "100vh";
+          chatContainer.style.top = "0";
+          chatContainer.style.left = "0";
+        } else {
+          maximizeButton.innerText = "🔳";
+          
+          // Reset to responsive behavior
+          if (window.innerWidth >= 1024) {
+            chatContainer.style.width = "40vw";
+            chatContainer.style.height = "70vh";
+          } else {
+            chatContainer.style.width = "90vw";
+            chatContainer.style.height = "80vh";
+          }
+        }
+
         chatContainer.style.top = isMaximized ? "0" : "auto";
         chatContainer.style.left = isMaximized ? "0" : "auto";
       });
@@ -222,8 +241,8 @@
       function toggleChat() {
         chatOpen = !chatOpen;
         chatContainer.style.display = chatOpen ? "flex" : "none";
-        chatContainer.style.width = "320px";
-        chatContainer.style.height = "600px";
+        // chatContainer.style.width = "320px";
+        // chatContainer.style.height = "600px";
         setTimeout(() => {
           chatContainer.style.opacity = chatOpen ? "1" : "0";
           chatContainer.style.transform = chatOpen ? "scale(1)" : "scale(0.8)";
