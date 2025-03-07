@@ -40,6 +40,8 @@ tool_answer = ""
 
 # Store chat history
 chat_logs = {}
+customers = {}
+orders = {}
 
 init_db()
 init_chats()
@@ -109,17 +111,26 @@ class DynamicToolFactory:
               def tool_function(param_value):
                   global tool_answer
 
+                  print(param_name)
+
                   # API Call
                   try:
-                    url = f"http://217.154.6.69/chatapi/server.php?endpoint={tool_name}&orderID=1234"
+                    url = f"http://217.154.69.224/chatapi/server.php?endpoint={tool_name}&orderID=1234"
                     # response = requests.get(url)
                   except:
                      print("")
 
-                  if self.verified:
+                  if customers[param_value]:
                     if param_value is None:
                         return f"Error: Missing required parameter '{param_name}'"
                     else:
+                        if(tool_name == "getOpenedOrders"):
+                            if(orders[param_value]):
+                                tool_answer = f"Folgende Order-IDs sind möglich: {','.join(orders[param_value])}"
+                            else:
+                                tool_answer = f"Keine Bestellungen"
+                            print(tool_answer)
+                            return tool_answer
                         tool_answer = f"'{tool_name}' API is called"
                         print(tool_answer)
                         return tool_answer
@@ -232,37 +243,51 @@ def translate_to_german(text: str) -> str:
 
 def stylize(text: str) -> str:
     """
-        Bitte stilisieren Sie den obigen Text mit Symbolen, damit er leicht lesbar ist.
     """
     prompt = f"""
         Übersetzen Sie den folgenden Text ins Deutsche.
-        Bitte stilisieren Sie den obigen Text mit Symbolen, damit er leicht lesbar ist.
         Nachfolgend der Text.
         {text}
     """
     return llm.predict(prompt)
 
 
-async def chat(user_message, sid):
+async def chat(user_message, chat_histories, customerID, orderIDs, sid):
     global tool_answer
+    histories = ""
+    faq_histories = ""
 
-    translated_query = await asyncio.to_thread(translate_to_german, user_message)
+    for history in chat_histories:
+        histories = f"{histories} {history['role']}:{history['message']}"
+        if(history['role'] == 'user'):
+            faq_histories = faq_histories + history['message'] + "\n"
+
+    print(histories)
+
+    prompt = f"""
+        Dies sind die Fragen, die der Benutzer zuvor gestellt hat:
+        {faq_histories}
+        Dies ist die Frage, die der Benutzer jetzt gestellt hat
+        {user_message}
+    """
+    translated_query = await asyncio.to_thread(translate_to_german, prompt)
 
     similar_faqs = await asyncio.to_thread(
         lambda: vector_db.similarity_search_with_score(translated_query, k=5)
     )
 
-    SIMILARITY_THRESHOLD = 0.25
+    SIMILARITY_THRESHOLD = 0.3
 
     most_similar_faq = min(similar_faqs, key=lambda x: x[1])
     if most_similar_faq[1] < SIMILARITY_THRESHOLD:
         faq_content = []
+        
         for faq, score in similar_faqs:
             if(score - most_similar_faq[1] < 0.05):
                 faq_content.append(f"{faq.page_content} : {faq.metadata['answer']}")
 
         print(faq_content)
-        # Ask GPT-4 to summarize and tailor the response
+        
         prompt = PromptTemplate.from_template(
             """
             Der Benutzer hat gefragt: {user_query}
@@ -271,15 +296,13 @@ async def chat(user_message, sid):
 
             {faq_content}
 
-            Bitte geben Sie eine klare und informative Antwort auf Englisch und verwenden Sie dabei nur die Informationen aus den FAQ.
-            Befolgen Sie diese Richtlinien:
+            Bitte geben Sie eine klare und informative Antwort auf Englisch und verwenden Sie dabei nur die Informationen aus den FAQ und Chatverläufen.
 
+            Befolgen Sie diese Richtlinien:
             - Verwenden Sie Symbole oder Icons, um die Antwort leicht verständlich zu machen.
             - Priorisieren Sie Informationen, die für Deutschland relevant sind.
             - Antworten Sie nur mit HTML-Inhalten für eine bessere Lesbarkeit.
-            - Wenn die Informationen unvollständig oder nicht verfügbar sind, antworten Sie mit: Ich bin mir nicht sicher
-
-            Strukturieren Sie die Antwort so, dass sie optisch ansprechend und für Benutzer leicht zu verstehen ist.
+            - Wenn die Informationen unvollständig oder nicht verfügbar sind, antworten Sie mit: Ich bin nicht sicher
             """
         )
 
@@ -296,6 +319,8 @@ async def chat(user_message, sid):
 
     async def process_request():
         global tool_answer
+        translated_histories = await asyncio.to_thread(translate_to_german, histories)
+        
         response = await asyncio.to_thread(agent.run, f"""
             Bitte verwenden Sie deutsche Quellen. 
             Basieren Sie Ihre Antworten hauptsächlich auf Informationen aus Deutschland. 
@@ -305,8 +330,15 @@ async def chat(user_message, sid):
             Sie sprechen auf Kanal (ID:{sid})
             Sie erhalten Beobachterdaten im HTML-Format. 
             Behalten Sie die ursprüngliche HTML-Struktur in der endgültigen Antwort bei. Entfernen Sie keine HTML-Tags.
-            Wenn Sie die Antwort nicht wissen, müssen Sie einfach sagen: „Ich bin mir nicht sicher“
-            """ + translated_query)
+            Wenn Sie die Antwort auf die Frage des Benutzers nicht kennen, müssen Sie sagen: „Ich bin mir nicht sicher“
+            oder Sie können Fragen stellen, um den Support zu kontaktieren
+
+            Dies ist der Chatverlauf
+            {translated_histories}
+
+            Benutzer fragte:
+            {translated_query}
+            """)
 
         if tool_answer:
             response = tool_answer
@@ -400,13 +432,18 @@ async def message(sid, data):
     if(sid != adminSid):
         room = data['room']
         message = data['message']
+        chat_histories = data['chatHistories']
+        customerID = data['customerID']
+        orderIDs = data['orderIDs']
+        customers[room] = customerID
+        orders[room] = orderIDs
         print(f"Message from {sid} in room {room}: {message}")
-        add_chat(message, sid, False);
+        add_chat(message, sid, False)
         await sio.emit('message', {'sid': sid, 'message': message, 'bot': get_bot_by_id(sid)}, room=room)
 
         bot = get_bot_by_id(room)
         if not bot:
-            answer = await chat(message, sid)
+            answer = await chat(message, chat_histories, customerID, orderIDs, sid)
             print(answer)
             add_chat(answer, sid, True)
             await sio.emit('message', {'sid': 'bot', 'message': answer}, room=room)

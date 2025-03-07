@@ -23,8 +23,6 @@ body {
     position: fixed;
     bottom: 80px;
     right: 20px;
-    width: 320px;
-    height: 420px;
     background: #f1f1f1;
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -134,3 +132,70 @@ body {
 .typing {
     margin-left: 10px; /* Adjust as needed */
 }
+
+.chat-header {
+    padding: 10px;
+    background: #dd5920;
+    color: white;
+    text-align: center;
+    font-weight: bold;
+  }
+
+  .chat-messages {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chat-input-container {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid #ccc;
+  }
+
+  .chat-input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    resize: none;
+  }
+
+  .send-button {
+    margin-left: 10px;
+    padding: 10px;
+    background: #dd5920;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+
+  .typing {
+    padding: 5px 10px;
+    font-size: 12px;
+    color: #666;
+  }
+
+  /* Responsive Styles */
+  @media screen and (min-width: 600px) {
+    .chat-container {
+      width: 30rem;
+      height: 80vh;
+      bottom: 10px;
+      right: 5px;
+      margin-bottom: 70px;
+    }
+  }
+
+  @media screen and (max-width: 600px) {
+    .chat-container {
+      width: 90vw;
+      height: 80vh;
+      bottom: 10px;
+      right: 5px;
+      margin-bottom: 75px;
+    }
+  }

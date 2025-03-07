@@ -6,89 +6,14 @@
   <title>Ventano Chat</title>
   <link href="./style.css" rel="stylesheet"/>
   <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
-  <style>
-    body {
-      margin: 0;
-    }
-
-    .chat-header {
-      padding: 10px;
-      background: #dd5920;
-      color: white;
-      text-align: center;
-      font-weight: bold;
-    }
-
-    .chat-messages {
-      flex: 1;
-      padding: 10px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .chat-input-container {
-      display: flex;
-      padding: 10px;
-      border-top: 1px solid #ccc;
-    }
-
-    .chat-input {
-      flex: 1;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      resize: none;
-    }
-
-    .send-button {
-      margin-left: 10px;
-      padding: 10px;
-      background: #dd5920;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    .typing {
-      padding: 5px 10px;
-      font-size: 12px;
-      color: #666;
-    }
-
-    /* Responsive Styles */
-    @media screen and (max-width: 600px) {
-      .chat-container {
-        width: 90vw;
-        height: 80vh;
-        bottom: 10px;
-        right: 5px;
-      }
-    }
-
-    /* Responsive Styles */
-    @media screen and (min-width: 1024px) {
-      .chat-container {
-        width: 40vw;
-        height: 70vh;
-        bottom: 20px;
-        right: 20px;
-      }
-    }
-
-    @media screen and (max-width: 1023px) {
-      .chat-container {
-        width: 90vw;
-        height: 80vh;
-        bottom: 10px;
-        right: 5px;
-      }
-    }
-  </style>
 </head>
 <body>
-
+  <div>
+    <input type="checkbox" id="customerID"/><label>Customer ID : 12345</label><br/>
+  </div>
+  <div>
+    <input type="checkbox" id="orderIDs"/><label>Order IDs : [11111, 2222]</label>
+  </div>
   <script>
     let chatMessages;
     let chatInput;
@@ -96,8 +21,12 @@
     let typingInterval;
     let typingDots = 0;
     let typingMessage;
+    let chatHistories = [];
+    let customerID = null;
+    let orderIDs = null;
 
     document.addEventListener("DOMContentLoaded", function () {
+
       // Chat Button
       const chatButton = document.createElement("div");
       chatButton.innerText = "💬";
@@ -124,7 +53,7 @@
       // Chat Header
       const chatHeader = document.createElement("div");
       chatHeader.classList.add("chat-header");
-      chatHeader.innerText = "Support-Chat";
+      chatHeader.innerHTML = "Support-Chat";
       chatContainer.appendChild(chatHeader);
       
       // Maximize Button
@@ -132,9 +61,6 @@
       maximizeButton.innerText = "🔳";
       maximizeButton.classList.add("maximize-button");
       maximizeButton.style.cssText = `
-        position: absolute;
-        top: 10px;
-        left: 10px;
         background: #666;
         color: white;
         border: none;
@@ -143,8 +69,10 @@
         height: 30px;
         cursor: pointer;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        margin-left: auto;
+        float: right;
       `;
-      chatContainer.appendChild(maximizeButton);
+      chatHeader.appendChild(maximizeButton);
       
       // Maximize Logic
       let isMaximized = false;
@@ -161,7 +89,7 @@
           
           // Reset to responsive behavior
           if (window.innerWidth >= 1024) {
-            chatContainer.style.width = "40vw";
+            chatContainer.style.width = "30rem";
             chatContainer.style.height = "70vh";
           } else {
             chatContainer.style.width = "90vw";
@@ -215,7 +143,6 @@
       chatInputContainer.appendChild(sendButton);
       chatContainer.appendChild(chatInputContainer);
       
-      // Send Message
       function sendMessage() {
         if (chatInput.value.trim() && !isBotTyping) {
           const userText = chatInput.value.trim();
@@ -241,8 +168,7 @@
       function toggleChat() {
         chatOpen = !chatOpen;
         chatContainer.style.display = chatOpen ? "flex" : "none";
-        // chatContainer.style.width = "320px";
-        // chatContainer.style.height = "600px";
+        
         setTimeout(() => {
           chatContainer.style.opacity = chatOpen ? "1" : "0";
           chatContainer.style.transform = chatOpen ? "scale(1)" : "scale(0.8)";
@@ -252,33 +178,6 @@
       
       chatButton.addEventListener("click", toggleChat);
     });
-
-    async function submitAnswer(questionId) {
-        const answerInput = document.getElementById(`answer-${questionId}`);
-        const answer = answerInput.value.trim();
-
-        if (answer) {
-            try {
-                const response = await fetch("/submit_answer", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        questionId: questionId,
-                        answer: answer,
-                    }),
-                });
-
-                const result = await response.json();
-                if (result.success) {
-                    document.getElementById(`status-${questionId}`).innerText = "Answered";
-                }
-            } catch (error) {
-                console.error("Error submitting answer:", error);
-            }
-        }
-    }
 
     // Typing Animation
     function startTyping() {
@@ -318,17 +217,22 @@
           userMessage.innerHTML = `<div>${data.message}</div>`;
           chatMessages.appendChild(userMessage);
           chatMessages.scrollTop = chatMessages.scrollHeight;
+
+          chatHistories.push({role: "user", message: data.message});
+
           if(!data.bot) {
             startTyping();
           }
       } else {
           const botMessage = document.createElement("div");
           botMessage.classList.add("bot-message");
-          console.log(data.message);
-          // botMessage.innerHTML = `<span>${data.message.replace(/([.?!])\s*(?=[A-Z])/g, '$1<br>')}</span>`;
+          
           botMessage.innerHTML = `<div>${data.message.replace("\r\n", "<br/>").replace("\n", "<br/>")}</div>`;
           chatMessages.appendChild(botMessage);
           chatMessages.scrollTop = chatMessages.scrollHeight;
+
+          chatHistories.push({role: "bot", message: data.message});
+
           stopTyping();
           isBotTyping = false;
       }
@@ -344,8 +248,27 @@
     });
 
     function sendMessageThread(message) {
-        socket.emit('message', { room: currentUserSid, message: message });
+      console.log(chatHistories);
+      socket.emit('message', { room: currentUserSid, message: message, chatHistories, customerID, orderIDs });
     }
+
+    document.getElementById("customerID").addEventListener('click', (e) => {
+      const value = e.target.checked;
+      if(value) {
+        customerID = "12345";
+      } else {
+        customerID = null;
+      }
+    });
+
+    document.getElementById("orderIDs").addEventListener('click', (e) => {
+      const value = e.target.checked;
+      if(value) {
+        orderIDs = ["11111","2222"];
+      } else {
+        orderIDs = null;
+      }
+    });
 
   </script>
 </body>
