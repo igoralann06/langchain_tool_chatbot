@@ -271,6 +271,7 @@ async def chat(user_message, chat_histories, customerID, orderIDs, sid):
         {faq_histories}
         Dies ist die Frage, die der Benutzer jetzt gestellt hat
         {user_message}
+        Bitte antworten Sie auf die aktuelle Frage
     """
     translated_query = await asyncio.to_thread(translate_to_german, prompt)
 
