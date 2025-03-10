@@ -180,7 +180,6 @@ def fallback_handler(userQuestion) -> str:
                     Bitte verwende deutsche Quellen. Basiere deine Antworten hauptsächlich auf Informationen aus Deutschland. Bitte verwende nur Informationen aus Deutschland. 
                     Antworten basieren nur auf deutschen Quellen. 
                     Bitte setze den folgenden Prompt in Bezug zu Fenster- und Türbeschlägen.
-                    Es werden nicht nur die grundlegenden Antworten, sondern auch zusätzliche relevante Informationen benötigt.
                     Sie müssen so gut wie möglich mit dem ChatGPT-Ergebnis antworten.
                     Prozess und präsentieren Sie die Antworten auf die folgenden Fragen auf Deutsch
                     Die Antwort muss nur die HTML-Struktur aufweisen und Absatz- und Überschriftenstile enthalten (nur h4, h5, h6).
