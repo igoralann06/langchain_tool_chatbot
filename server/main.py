@@ -221,7 +221,7 @@ tools.append(contactsupport_tool)
 #   Initialize LLM & Agent
 # =====================
 
-llm = ChatOpenAI(model_name="gpt-4-turbo", openai_api_key=openai_api_key)
+llm = ChatOpenAI(model_name="gpt-4", openai_api_key=openai_api_key)
 
 agent = initialize_agent(
   tools=tools,
