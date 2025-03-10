@@ -2,6 +2,7 @@
     background: #fff;
     background: -webkit-linear-gradient(to bottom right, rgba(252, 203, 144, 1), rgba(213, 126, 235, 1));
     height: 100vh;
+    font-size: 14px;
 }
 
 .mask-custom {

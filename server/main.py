@@ -175,14 +175,16 @@ class fallbackModel(BaseModel):
 def fallback_handler(userQuestion) -> str:
     response = openai.ChatCompletion.create(
         model="gpt-4",
-        temperature=0.7,
+        temperature=0,
         messages=[{"role": "system", "content": """ 
                     Bitte verwende deutsche Quellen. Basiere deine Antworten hauptsächlich auf Informationen aus Deutschland. Bitte verwende nur Informationen aus Deutschland. 
                     Antworten basieren nur auf deutschen Quellen. 
+                    Bitte setze den folgenden Prompt in Bezug zu Fenster- und Türbeschlägen.
                     Es werden nicht nur die grundlegenden Antworten, sondern auch zusätzliche relevante Informationen benötigt.
-                    Sie müssen so gut wie möglich mit dem Chatgpt-Ergebnis antworten.
-                    Die Antwort muss nur mit der HTML-Struktur zurückgeben und Absatz- und Überschriftenstile enthalten.
-                    Sie erhalten Beobachterdaten im HTML-Format. 
+                    Sie müssen so gut wie möglich mit dem ChatGPT-Ergebnis antworten.
+                    Prozess und präsentieren Sie die Antworten auf die folgenden Fragen auf Deutsch
+                    Die Antwort muss nur die HTML-Struktur aufweisen und Absatz- und Überschriftenstile enthalten (nur h4, h5, h6).
+                    Sie erhalten Beobachterdaten im HTML-Format.
                     Behalten Sie die ursprüngliche HTML-Struktur in der endgültigen Antwort bei. Entfernen Sie keine HTML-Tags.
                     """}, {"role": "user", "content": userQuestion}])
     return response["choices"][0]["message"]["content"]
@@ -220,7 +222,7 @@ tools.append(contactsupport_tool)
 #   Initialize LLM & Agent
 # =====================
 
-llm = ChatOpenAI(model_name="gpt-4", openai_api_key=openai_api_key)
+llm = ChatOpenAI(model_name="gpt-4-turbo", openai_api_key=openai_api_key)
 
 agent = initialize_agent(
   tools=tools,
