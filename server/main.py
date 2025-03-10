@@ -324,6 +324,7 @@ async def chat(user_message, chat_histories, customerID, orderIDs, sid):
         translated_histories = await asyncio.to_thread(translate_to_german, histories)
         
         response = await asyncio.to_thread(agent.run, f"""
+            Du bist der virtuelle Assistent für den Ventano-Support. Wenn er Hallo sagt, müssen Sie sagen: „Ich bin der virtuelle Assistent von Ventano.“
             Bitte verwenden Sie deutsche Quellen. 
             Basieren Sie Ihre Antworten hauptsächlich auf Informationen aus Deutschland. 
             Bitte verwenden Sie nur Informationen aus Deutschland. 
